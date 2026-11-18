@@ -29,21 +29,22 @@ Référence : [spec.md](spec.md)
 - [x] Points par carte, bouts (petit, 21, excuse), total de 91 points
 - [x] Mélange (RNG injectable pour tester)
 - [x] Tests unitaires
-- [ ] **Sprint validé par l'humain**
+- [x] **Sprint validé par l'humain**
 
 #### Sprint B2 — Distribution
-- [ ] Config par nombre de joueurs (3 / 4 / 5) : cartes par main, taille du chien
-- [ ] Distribution main par main et chien
-- [ ] Tests : toutes les cartes distribuées une seule fois, pour 3, 4 et 5 joueurs
-- [ ] **Sprint validé par l'humain**
+- [x] Config par nombre de joueurs (3 / 4 / 5) : cartes par main, taille du chien
+- [x] Distribution main par main et chien
+- [x] Tests : toutes les cartes distribuées une seule fois, pour 3, 4 et 5 joueurs
+- [x] **Sprint validé par l'humain**
 
 ### Règles du jeu (moteur pur, sans réseau)
 
 #### Sprint B3 — Enchères
-- [ ] Contrats : petite, garde, garde sans, garde contre
-- [ ] Tour d'enchères (passer, surenchérir uniquement)
-- [ ] Cas où tout le monde passe (redonne)
-- [ ] Tests
+- [x] Contrats : petite, garde, garde sans, garde contre
+- [x] Tour d'enchères (passer, surenchérir uniquement)
+- [x] Cas où tout le monde passe (redonne)
+- [x] Petit sec : un joueur dont le seul atout est le Petit (sans l'Excuse) fait annuler la donne (redonne)
+- [x] Tests
 - [ ] **Sprint validé par l'humain**
 
 #### Sprint B4 — Appel du roi (5 joueurs)
