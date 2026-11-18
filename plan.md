@@ -45,20 +45,20 @@ Référence : [spec.md](spec.md)
 - [x] Cas où tout le monde passe (redonne)
 - [x] Petit sec : un joueur dont le seul atout est le Petit (sans l'Excuse) fait annuler la donne (redonne)
 - [x] Tests
-- [ ] **Sprint validé par l'humain**
+- [x] **Sprint validé par l'humain**
 
 #### Sprint B4 — Appel du roi (5 joueurs)
-- [ ] L'attaquant appelle un roi
-- [ ] Partenaire caché, révélé à la jouée du roi
-- [ ] Cas où l'attaquant s'appelle lui-même
-- [ ] Tests
-- [ ] **Sprint validé par l'humain**
+- [x] L'attaquant appelle un roi
+- [x] Partenaire caché, révélé à la jouée du roi
+- [x] Cas où l'attaquant s'appelle lui-même
+- [x] Tests
+- [x] **Sprint validé par l'humain**
 
 #### Sprint B5 — Chien et écart
-- [ ] Révélation du chien selon le contrat
-- [ ] Écart : cartes autorisées (pas de roi, pas de bout, atouts en dernier recours)
-- [ ] Garde sans / garde contre : chien non pris en main
-- [ ] Tests
+- [x] Révélation du chien selon le contrat
+- [x] Écart : cartes autorisées (pas de roi, pas de bout, atouts en dernier recours)
+- [x] Garde sans / garde contre : chien non pris en main
+- [x] Tests
 - [ ] **Sprint validé par l'humain**
 
 #### Sprint B6 — Coups légaux
@@ -86,7 +86,7 @@ Référence : [spec.md](spec.md)
 > Deux familles d'annonces : les **formelles** (contrats, poignée, chelem, petit au bout), traitées ici et en B10, et la **signalisation** de la défense (signaux par les cartes jouées, règles dans spec.md), traitée en B20 à B23.
 
 - [ ] Modèle d'annonce + moment où elle est autorisée
-- [ ] Poignées (seuils selon le nombre de joueurs), validation des atouts montrés
+- [ ] Poignées **simple, double et triple** (seuils selon le nombre de joueurs), validation des atouts montrés (l'Excuse compte comme atout)
 - [ ] Tests
 - [ ] **Sprint validé par l'humain**
 
