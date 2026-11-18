@@ -1,5 +1,12 @@
 import { StateView } from "@colyseus/schema";
-import { Room, type Client, type CloseCode } from "colyseus";
+import {
+  ErrorCode,
+  Room,
+  ServerError,
+  type AuthContext,
+  type Client,
+  type CloseCode,
+} from "colyseus";
 
 import {
   canAnnounceHandful,
@@ -8,6 +15,9 @@ import {
   validateSlamAnnouncement,
   type Announcement,
 } from "../engine/announcements.js";
+import { authenticate } from "../auth/authenticate.js";
+import type { PlayerIdentity } from "../auth/identity.js";
+import { AuthError } from "../auth/verify-token.js";
 import {
   CONTRACTS,
   auctionResult,
@@ -53,10 +63,11 @@ export type TarotRoomOptions = {
   playerCount?: number;
 };
 
-export type JoinOptions = {
-  /** Pseudo provisoire, en attendant l'authentification Supabase (B13). */
-  name?: string;
-};
+/**
+ * Client authentifié : `client.auth` est l'identité renvoyée par `TarotRoom.onAuth`.
+ * Elle reste côté serveur (ni le jeton ni l'identifiant Supabase ne sont synchronisés).
+ */
+export type TarotClient = Client<{ auth: PlayerIdentity }>;
 
 /** Délai pendant lequel le siège d'un joueur déconnecté lui reste réservé. */
 const RECONNECTION_SECONDS = 30;
@@ -78,7 +89,7 @@ type DealContext = {
   play: PlayState | null;
 };
 
-export class TarotRoom extends Room<{ state: TarotState }> {
+export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> {
   state = new TarotState();
 
   private ctx: DealContext | null = null;
@@ -109,12 +120,43 @@ export class TarotRoom extends Room<{ state: TarotState }> {
     this.state.playerCount = playerCount;
   }
 
-  onJoin(client: Client, options: JoinOptions = {}) {
+  /**
+   * Authentification, appelée par le matchmaking avant toute réservation de siège (création
+   * comme connexion) : le jeton Supabase arrive dans l'en-tête `Authorization: Bearer`
+   * (`client.auth.token = jwt` côté SDK). Une connexion sans jeton valide est refusée avec
+   * le code `AUTH_FAILED` et un message `Authentification refusée (<raison>) : …`.
+   * L'identité renvoyée devient `client.auth`.
+   */
+  static async onAuth(
+    token: string | undefined,
+    _options: unknown,
+    _context: AuthContext,
+  ): Promise<PlayerIdentity> {
+    try {
+      return await authenticate(token);
+    } catch (error) {
+      if (!(error instanceof AuthError)) throw error;
+      throw new ServerError(
+        ErrorCode.AUTH_FAILED,
+        `Authentification refusée (${error.reason}) : ${error.message}`,
+      );
+    }
+  }
+
+  /** Les options de connexion sont ignorées : l'identité et le pseudo viennent du jeton. */
+  onJoin(client: TarotClient) {
+    // Par sécurité : un client arrivé sans passer par `onAuth` n'a pas d'identité.
+    const identity = client.auth;
+    if (!identity) {
+      throw new ServerError(ErrorCode.AUTH_FAILED, "Authentification refusée : identité absente");
+    }
+
     const seat = this.freeSeat();
     const player = new PlayerState();
     player.sessionId = client.sessionId;
     player.seat = seat;
-    player.name = cleanName(options.name) ?? `Joueur ${seat + 1}`;
+    // Pseudo de repli tant que l'utilisateur n'en a pas (profils : B14).
+    player.name = identity.name ?? `Joueur ${seat + 1}`;
     this.state.players.set(client.sessionId, player);
 
     // Le joueur voit les champs privés (`.view()`) de son propre état, et de personne d'autre.
@@ -506,11 +548,4 @@ function makeAnnouncement(announcement: Announcement): AnnouncementState {
     state.cards.push(...announcement.cards.map(cardId));
   }
   return state;
-}
-
-/** Pseudo nettoyé (texte libre venant du client), ou `undefined` s'il est vide. */
-function cleanName(name: unknown): string | undefined {
-  if (typeof name !== "string") return undefined;
-  const trimmed = name.trim().slice(0, 24);
-  return trimmed.length > 0 ? trimmed : undefined;
 }

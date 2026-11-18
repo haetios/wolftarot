@@ -3,6 +3,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 
 import appConfig from "../../src/app.config.js";
 import type { TarotRoom } from "../../src/rooms/TarotRoom.js";
+import { connectAs } from "../helpers/auth.js";
 
 describe("TarotRoom", () => {
   let colyseus: ColyseusTestServer<typeof appConfig>;
@@ -15,6 +16,9 @@ describe("TarotRoom", () => {
 
   const createRoom = (playerCount?: number) =>
     colyseus.createRoom<TarotRoom>("tarot", playerCount === undefined ? {} : { playerCount });
+  /** Un joueur authentifié (nouvel utilisateur Supabase à chaque appel). */
+  const join = (room: TarotRoom, username?: string) =>
+    connectAs(colyseus, room, username === undefined ? {} : { username });
 
   describe("création", () => {
     it("4 joueurs par défaut", async () => {
@@ -37,8 +41,9 @@ describe("TarotRoom", () => {
   describe("rejoindre et quitter", () => {
     it("chaque joueur reçoit le plus petit siège libre et son pseudo", async () => {
       const room = await createRoom(3);
-      const a = await colyseus.connectTo(room, { name: "  Alice  " });
-      const b = await colyseus.connectTo(room, {});
+      // Le pseudo vient du jeton (`user_metadata.username`) ; sans pseudo, valeur de repli.
+      const a = await join(room, "  Alice  ");
+      const b = await join(room);
 
       const alice = room.state.players.get(a.sessionId)!;
       const other = room.state.players.get(b.sessionId)!;
@@ -49,20 +54,20 @@ describe("TarotRoom", () => {
 
     it("avant la partie, quitter libère le siège", async () => {
       const room = await createRoom(3);
-      const a = await colyseus.connectTo(room);
-      await colyseus.connectTo(room);
+      const a = await join(room);
+      await join(room);
 
       await a.leave();
       await room.waitForNextPatch();
       expect(room.state.players.size).toBe(1);
 
-      const c = await colyseus.connectTo(room);
+      const c = await join(room);
       expect(room.state.players.get(c.sessionId)!.seat).toBe(0);
     });
 
     it("une table complète est verrouillée et la donne commence", async () => {
       const room = await createRoom(3);
-      for (let i = 0; i < 3; i++) await colyseus.connectTo(room);
+      for (let i = 0; i < 3; i++) await join(room);
 
       expect(room.locked).toBe(true);
       expect(room.state.phase).toBe("bidding");
@@ -74,7 +79,7 @@ describe("TarotRoom", () => {
     it("pendant la partie, quitter ne libère pas le siège", async () => {
       const room = await createRoom(3);
       const clients = [];
-      for (let i = 0; i < 3; i++) clients.push(await colyseus.connectTo(room));
+      for (let i = 0; i < 3; i++) clients.push(await join(room));
 
       await clients[0]!.leave();
       await room.waitForNextPatch();
@@ -90,7 +95,7 @@ describe("TarotRoom", () => {
       [5, 15],
     ])("à %i joueurs : %i cartes chacun, toutes différentes", async (players, handSize) => {
       const room = await createRoom(players);
-      for (let i = 0; i < players; i++) await colyseus.connectTo(room);
+      for (let i = 0; i < players; i++) await join(room);
 
       const hands = [...room.state.players.values()].map((p) => [...p.hand]);
       for (const hand of hands) expect(hand).toHaveLength(handSize);
@@ -103,7 +108,7 @@ describe("TarotRoom", () => {
     it("chaque client ne reçoit que sa propre main", async () => {
       const room = await createRoom(3);
       const clients = [];
-      for (let i = 0; i < 3; i++) clients.push(await colyseus.connectTo(room));
+      for (let i = 0; i < 3; i++) clients.push(await join(room));
       await Promise.all(clients.map((c) => c.waitForNextPatch()));
 
       for (const client of clients) {

@@ -2,3 +2,6 @@ node_modules
 build
 .colyseus-cloud.json
 .devmode.json
+# Configuration locale (peut contenir des secrets) : seul `.env.example` est versionné.
+.env
+.env.local

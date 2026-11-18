@@ -10,6 +10,7 @@ import { discardableCards } from "../../src/engine/dog.js";
 import { callableCards } from "../../src/engine/king-call.js";
 import { getLegalCards } from "../../src/engine/legal-moves.js";
 import type { TarotRoom } from "../../src/rooms/TarotRoom.js";
+import { connectAs } from "../helpers/auth.js";
 
 type SdkRoom = SdkRoomOf<TarotRoom>;
 type MessageType = keyof TarotRoom["messages"];
@@ -28,7 +29,7 @@ describe("TarotRoom : déroulement d'une donne", () => {
     const room = await colyseus.createRoom<TarotRoom>("tarot", { playerCount });
     const clients: SdkRoom[] = [];
     for (let i = 0; i < playerCount; i++) {
-      clients.push(await colyseus.connectTo(room, { name: `J${i}` }));
+      clients.push(await connectAs(colyseus, room, { username: `J${i}` }));
     }
     return new Table(room, clients);
   }

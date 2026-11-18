@@ -115,11 +115,11 @@ Référence : [spec.md](spec.md)
 - [x] **Sprint validé par l'agent**
 
 #### Sprint B13 — Authentification Supabase
-- [ ] Vérification du JWT Supabase à la connexion Colyseus (`onAuth`)
-- [ ] Récupération de l'identité (id, pseudo)
-- [ ] Rejet des connexions non authentifiées
-- [ ] Tests
-- [ ] **Sprint validé par l'agent**
+- [x] Vérification du JWT Supabase à la connexion Colyseus (`onAuth`)
+- [x] Récupération de l'identité (id, pseudo)
+- [x] Rejet des connexions non authentifiées
+- [x] Tests
+- [x] **Sprint validé par l'agent**
 
 #### Sprint B14 — Profil et paramètres
 - [ ] Table Supabase `profiles` (pseudo unique) + RLS
