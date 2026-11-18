@@ -13,6 +13,13 @@ Un joueur doit pouvoir :
 - Jouer en libre en ligne (multijoueur)
 - Jouer en libre en autorisant les bots
 - Créer des tables privées
+- S'entrainer sur des donnes préfaites, avec un ID de donne (rejouer la même donne à la même position ou à une autre ; sans ID, donne au hasard)
+- Voir à la fin d'une donne d'entrainement son pourcentage, comme sur Foxtarot
+
+L'entrainement :
+
+- La main de l'attaquant est cohérente avec son contrat (vrai jeu d'attaque), mais la donne peut être gagnée ou chuter
+- 20 nouvelles donnes sont créées par jour, puis vérifiées par un humain (admin) avant d'être jouables
 
 Un bot doit :
 

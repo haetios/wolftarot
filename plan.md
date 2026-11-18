@@ -7,7 +7,7 @@ Référence : [spec.md](spec.md)
 > - Claude coche les tâches au fur et à mesure (`- [x]`).
 > - Quand toutes les tâches sont faites, Claude s'arrête, résume, et demande validation.
 > - Seul l'humain coche « Sprint validé ». **Pas de nouveau sprint tant que ce n'est pas coché.**
-> - Ordre : tout le Backend (B0 → B25), puis le Frontend (F0 → F20). Un sprint frontend peut démarrer plus tôt uniquement si l'humain le demande.
+> - Ordre : tout le Backend (B0 → B30), puis le Frontend (F0 → F22). Un sprint frontend peut démarrer plus tôt uniquement si l'humain le demande.
 
 ---
 
@@ -16,11 +16,11 @@ Référence : [spec.md](spec.md)
 ### Fondations
 
 #### Sprint B0 — Initialisation du projet
-- [ ] Créer `backend/` (Node + TypeScript strict)
-- [ ] Installer Colyseus, serveur qui démarre
+- [x] Créer `backend/` avec `pnpm create colyseus-app@latest ./backend` (TypeScript, preset turn-based, layout server)
+- [x] Installer Colyseus, serveur qui démarre
 - [ ] Route `GET /health`
 - [ ] Lint + format + Vitest configurés, 1 test de fumée
-- [ ] README minimal (lancer, tester)
+- [x] README minimal (lancer, tester)
 - [ ] **Sprint validé par l'humain**
 
 #### Sprint B1 — Cartes et paquet
@@ -193,22 +193,63 @@ Référence : [spec.md](spec.md)
 - [ ] Tests : un bot émetteur est compris par un bot lecteur (B22)
 - [ ] **Sprint validé par l'humain**
 
-#### Sprint B24 — Donnes d'entraînement préfaites
-- [ ] Format JSON d'une donne : nombre de joueurs, mains par rôle (attaquant, devant, milieu, fond), chien, enchères figées (contrat, preneur, roi appelé), titre, thème
-- [ ] Dossier `backend/data/training-deals/` + chargeur
-- [ ] Validateur (78 cartes distinctes, tailles de main et de chien, enchères cohérentes), lancé dans les tests
-- [ ] Générateur de donnes avec contraintes (ex. : un honneur majeur dans une main, N atouts, un doubleton), tirage jusqu'à satisfaction, graine reproductible
-- [ ] Génération d'un lot de donnes par thème de signalisation (3, 4 et 5 joueurs), avec titre et courte explication pédagogique
-- [ ] Fichier de relecture : liste lisible des donnes à faire valider par un joueur confirmé (les donnes non relues sont marquées `reviewed: false`)
+#### Sprint B24 — Format et validateur d'une donne d'entraînement
+> Une donne d'entraînement a un **ID public** (partageable), pour être rejouée à la même position ou à une autre. Les mains sont indexées par rôle (attaquant, devant, milieu, fond).
+
+- [ ] Format d'une donne : ID, nombre de joueurs, mains par rôle, chien, enchères figées (contrat, preneur, roi appelé), titre, thème
+- [ ] Validateur (78 cartes distinctes, tailles de main et de chien, enchères cohérentes)
+- [ ] Sérialisation JSON + génération d'un ID unique et court
 - [ ] Tests
 - [ ] **Sprint validé par l'humain**
 
-#### Sprint B25 — Mode entraînement
-- [ ] Room d'entraînement : lance une donne préfaite choisie, sans tirage aléatoire
-- [ ] Choix du rôle du joueur (attaque, devant, au milieu, au fond) : il reçoit la main de ce rôle, les autres sièges sont des bots
-- [ ] Liste des donnes disponibles exposée au client
+#### Sprint B25 — Générateur de donnes : vrai jeu d'attaque
+> La main de l'attaquant doit être cohérente avec son contrat et constituer un vrai jeu d'attaque. La donne peut ensuite être gagnée ou chuter.
+
+- [ ] Critères de force d'une main d'attaque (nombre et qualité des atouts, bouts, rois, longues, points) par nombre de joueurs et par contrat
+- [ ] Tirage de mains jusqu'à ce que l'attaquant satisfaise les critères ; les autres mains restent aléatoires (la donne peut chuter ou réussir)
+- [ ] Contrat figé choisi en cohérence avec la main (petite, garde, garde sans, garde contre)
+- [ ] Graine reproductible
+- [ ] Tests : mains générées toutes valides et conformes aux critères, sur un grand nombre de tirages
+- [ ] **Sprint validé par l'humain**
+
+#### Sprint B26 — Stockage des donnes (Supabase)
+- [ ] Table `training_deals` : ID public, contenu, statut (`pending`, `approved`, `rejected`), date de création
+- [ ] RLS : les joueurs ne voient que les donnes `approved`
+- [ ] Lecture d'une donne par ID, tirage d'une donne `approved` au hasard
+- [ ] Tests
+- [ ] **Sprint validé par l'humain**
+
+#### Sprint B27 — Génération quotidienne
+- [ ] Tâche planifiée : 20 nouvelles donnes par jour, créées au statut `pending`
+- [ ] Répartition des donnes (3, 4 et 5 joueurs, contrats variés)
+- [ ] Lancement manuel possible pour les tests
+- [ ] Tests
+- [ ] **Sprint validé par l'humain**
+
+#### Sprint B28 — Validation par un admin
+- [ ] Rôle `admin` (Supabase), vérifié côté backend
+- [ ] API admin : lister les donnes `pending`, voir une donne, approuver ou rejeter
+- [ ] Une donne `pending` ou `rejected` ne peut jamais être jouée
+- [ ] Tests
+- [ ] **Sprint validé par l'humain**
+
+#### Sprint B29 — Mode entraînement
+- [ ] Room d'entraînement qui lance une donne figée (aucun tirage de cartes)
+- [ ] Le joueur fournit un **ID de donne**, sinon la donne est choisie au hasard parmi les `approved`
+- [ ] Choix du rôle (attaque, devant, au milieu, au fond) : le joueur reçoit la main de ce rôle, les autres sièges sont des bots
+- [ ] Rejouer la même donne à la même position ou à une autre, via son ID
 - [ ] Interdit en partie libre (la position y est imposée)
-- [ ] Tests : une donne d'entraînement se joue jusqu'au bout avec chaque rôle
+- [ ] Tests : une donne se joue jusqu'au bout avec chaque rôle
+- [ ] **Sprint validé par l'humain**
+
+#### Sprint B30 — Résultats et pourcentage (comme FoxTarot)
+> Hypothèse à valider : le pourcentage compare le score du joueur à celui des autres joueurs ayant joué la même donne **au même rôle**.
+
+- [ ] Table `training_results` (donne, joueur, rôle, score, date)
+- [ ] Calcul du pourcentage de joueurs que le joueur a égalés ou battus sur cette donne et ce rôle
+- [ ] Renvoyé à la fin de la donne ; cas du premier joueur à jouer la donne
+- [ ] Une seule entrée comptée par joueur, donne et rôle (meilleure tentative ou première, à trancher)
+- [ ] Tests
 - [ ] **Sprint validé par l'humain**
 
 ---
@@ -218,8 +259,8 @@ Référence : [spec.md](spec.md)
 ### Fondations
 
 #### Sprint F0 — Initialisation du projet
-- [ ] Créer `frontend/` (Nuxt, TypeScript)
-- [ ] Installer Nuxt UI
+- [x] Créer `frontend/` avec `pnpm create nuxt@latest ./frontend` (template minimal)
+- [x] Installer Nuxt UI et Tailwind (module `@nuxt/ui`, `main.css`, `<UApp>`)
 - [ ] Page d'accueil vide + layout
 - [ ] Lint + format + Vitest
 - [ ] **Sprint validé par l'humain**
@@ -341,13 +382,25 @@ Référence : [spec.md](spec.md)
 
 #### Sprint F19 — Mode entraînement
 - [ ] Entrée « Entraînement »
-- [ ] Liste des donnes préfaites (titre, thème, nombre de joueurs)
+- [ ] Champ « ID de donne » facultatif (vide = donne au hasard)
 - [ ] Choix de la position (attaque, devant, au milieu, au fond)
+- [ ] **Sprint validé par l'humain**
+
+#### Sprint F20 — Fin d'entraînement : pourcentage et rejouer
+- [ ] Affichage du pourcentage à la fin de la donne (comme FoxTarot)
+- [ ] Affichage de l'ID de la donne, copiable
+- [ ] Boutons « Rejouer à la même position » et « Rejouer à une autre position »
+- [ ] **Sprint validé par l'humain**
+
+#### Sprint F21 — Admin : validation des donnes
+- [ ] Page réservée aux admins
+- [ ] Liste des donnes `pending`, visualisation d'une donne (mains, chien, contrat)
+- [ ] Approuver / rejeter
 - [ ] **Sprint validé par l'humain**
 
 ### Finitions
 
-#### Sprint F20 — Robustesse et qualité
+#### Sprint F22 — Robustesse et qualité
 - [ ] Reconnexion à une partie en cours
 - [ ] Accessibilité (contrastes, clavier, labels)
 - [ ] Performance mobile

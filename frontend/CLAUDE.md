@@ -9,7 +9,7 @@ Interface du jeu : appels API et WebSockets (client Colyseus), auth Supabase.
 @../CLAUDE.md
 
 - Spécifications : [../spec.md](../spec.md)
-- Plan : [../plan.md](../plan.md) — section **Frontend** (sprints F0 → F20)
+- Plan : [../plan.md](../plan.md) — section **Frontend** (sprints F0 → F22)
 
 ## Règle de travail : sprint par sprint (OBLIGATOIRE)
 

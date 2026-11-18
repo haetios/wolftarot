@@ -1,0 +1,5 @@
+# uWebSockets.js (dépendance de `colyseus`) est publié depuis GitHub, pas sur le registre npm.
+blockExoticSubdeps: false
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: false

@@ -9,7 +9,7 @@ Gameplay du Tarot : règles, rooms, bots, vérification d'auth Supabase.
 @../CLAUDE.md
 
 - Spécifications : [../spec.md](../spec.md)
-- Plan : [../plan.md](../plan.md) — section **Backend** (sprints B0 → B25)
+- Plan : [../plan.md](../plan.md) — section **Backend** (sprints B0 → B30)
 
 ## Règle de travail : sprint par sprint (OBLIGATOIRE)
 
