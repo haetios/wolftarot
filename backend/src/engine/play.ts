@@ -141,14 +141,20 @@ export function isPlayFinished(state: PlayState): boolean {
 export type CampCards = {
   readonly attack: Card[];
   readonly defense: Card[];
+  /**
+   * Échange de l'Excuse impossible : son camp n'a remporté aucune carte à donner
+   * (l'autre camp a fait tous les plis). Le demi-point reste dû et sera compté au score :
+   * l'Excuse vaut alors 4 points au lieu de 4,5 (règlement FFT).
+   */
+  readonly unpaidExcuseDebt: { readonly from: Camp; readonly to: Camp } | null;
 };
 
 /**
- * Cartes remportées par chaque camp en fin de donne (hors chien et écart, comptés en B8).
+ * Cartes remportées par chaque camp en fin de donne (hors chien et écart).
  *
  * Règles de l'Excuse (FFT) :
  * - jouée avant le dernier pli, elle reste à son camp ; si l'autre camp remporte ce pli,
- *   le camp de l'Excuse lui donne en échange une carte à 0,5 point ;
+ *   le camp de l'Excuse lui donne en échange une carte sans valeur (0,5 point) ;
  * - jouée au dernier pli, elle va au camp qui remporte le pli (elle change de camp),
  *   sauf chelem où elle remporte elle-même le pli.
  */
@@ -173,16 +179,18 @@ export function campCards(state: PlayState): CampCards {
     }
   }
 
+  let unpaidExcuseDebt: CampCards["unpaidExcuseDebt"] = null;
   if (excuseDebt !== null) {
     const { from, to } = excuseDebt;
     // Carte d'échange : une carte à 0,5 point (hors bout) remportée par le camp de l'Excuse.
-    // Si ce camp n'en a aucune, l'échange n'a pas lieu.
     const index = won[from].findIndex((card) => cardPoints(card) === 0.5 && !isOudler(card));
     if (index !== -1) {
       const [given] = won[from].splice(index, 1);
       won[to].push(given!);
+    } else {
+      unpaidExcuseDebt = excuseDebt;
     }
   }
 
-  return won;
+  return { ...won, unpaidExcuseDebt };
 }

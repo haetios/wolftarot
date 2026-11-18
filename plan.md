@@ -75,12 +75,12 @@ Référence : [spec.md](spec.md)
 - [x] Excuse jouée au dernier pli : elle change de camp (va au gagnant du pli), sauf chelem où elle peut remporter le dernier pli
 - [x] Enchaînement des plis jusqu'à la fin de la donne
 - [x] Tests
-- [ ] **Sprint validé par l'humain**
+- [x] **Sprint validé par l'humain**
 
 #### Sprint B8 — Comptage et score
-- [ ] Décompte des points (attaque / défense), nombre de bouts, contrat rempli ou non
-- [ ] Calcul du score par joueur (3, 4 et 5 joueurs)
-- [ ] Tests
+- [x] Décompte des points (attaque / défense), nombre de bouts, contrat rempli ou non
+- [x] Calcul du score par joueur (3, 4 et 5 joueurs)
+- [x] Tests
 - [ ] **Sprint validé par l'humain**
 
 #### Sprint B9 — Annonces formelles (partie 1)
