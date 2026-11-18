@@ -14,9 +14,37 @@ import {
   countPoints,
   createDeck,
   isOudler,
+  parseCardId,
   suitCard,
   trump,
 } from "../../src/engine/cards.js";
+
+describe("parseCardId", () => {
+  it("retrouve chaque carte du paquet à partir de son identifiant", () => {
+    for (const card of createDeck()) {
+      expect(parseCardId(cardId(card))).toEqual(card);
+    }
+  });
+
+  it.each([
+    "",
+    "hearts",
+    "hearts-0",
+    "hearts-15",
+    "trump-0",
+    "trump-22",
+    "trump-01",
+    "Hearts-1",
+    "excuse ",
+    "stars-3",
+    42,
+    null,
+    undefined,
+    { kind: "excuse" },
+  ])("refuse une valeur invalide (%o)", (value) => {
+    expect(parseCardId(value)).toBeNull();
+  });
+});
 
 describe("createDeck", () => {
   const deck = createDeck();

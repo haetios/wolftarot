@@ -50,6 +50,29 @@ export function cardId(card: Card): string {
   }
 }
 
+/**
+ * Inverse de `cardId`. Renvoie `null` pour toute valeur qui n'est pas exactement
+ * l'identifiant d'une carte (les messages des clients ne sont pas fiables).
+ */
+export function parseCardId(id: unknown): Card | null {
+  if (typeof id !== "string") return null;
+  if (id === "excuse") return EXCUSE;
+  const match = /^(spades|hearts|diamonds|clubs|trump)-(\d{1,2})$/.exec(id);
+  if (!match) return null;
+  const [, family, rankText] = match;
+  const rank = Number(rankText);
+  const card: Card | null =
+    family === "trump"
+      ? rank >= 1 && rank <= 21
+        ? trump(rank as TrumpRank)
+        : null
+      : rank >= 1 && rank <= KING
+        ? suitCard(family as Suit, rank as SuitRank)
+        : null;
+  // Refuse les écritures non canoniques, comme « trump-01 ».
+  return card !== null && cardId(card) === id ? card : null;
+}
+
 /** Les trois bouts (oudlers) : le Petit (atout 1), le 21 d'atout et l'Excuse. */
 export function isOudler(card: Card): boolean {
   return card.kind === "excuse" || (card.kind === "trump" && (card.rank === 1 || card.rank === 21));

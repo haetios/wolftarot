@@ -10,18 +10,22 @@ Site de jeu de Tarot français (3, 4 ou 5 joueurs). Monorepo en deux projets : `
 - Spécifications : [spec.md](spec.md)
 - Plan par sprints : [plan.md](plan.md)
 
-## Règle de travail : sprint par sprint (OBLIGATOIRE)
+## Règle de travail : sprint par sprint, deux agents (OBLIGATOIRE)
 
-1. Travaille **un seul sprint à la fois**, dans l'ordre de [plan.md](plan.md) (tout le backend, puis le frontend).
-2. Au fil du travail, coche les tâches terminées dans `plan.md` (`- [x]`).
-3. Quand toutes les tâches du sprint sont faites :
-   - lance les tests et le lint ;
-   - **arrête-toi** et donne un résumé court : ce qui a changé, fichiers touchés, comment vérifier à la main ;
-   - demande explicitement la validation de l'humain.
-4. **Ne commence JAMAIS le sprint suivant** tant que l'humain n'a pas accepté le sprint en cours. Seul l'humain coche « **Sprint validé par l'humain** » (ou te dit de le cocher).
-5. Si l'humain demande des corrections, reste dans le sprint en cours.
-6. Reste dans le périmètre du sprint : pas de fonctionnalités des sprints suivants « au passage ». Si tu penses qu'il manque quelque chose au plan, propose une modification de `plan.md` et attends la réponse.
-7. Si la spec est ambiguë, pose la question avant de coder.
+Chaque sprint de [plan.md](plan.md) passe par **deux agents distincts**, dans l'ordre du plan (tout le backend, puis le frontend) :
+
+1. **Agent codeur** — implémente **uniquement** le sprint en cours :
+   - coche les tâches terminées dans `plan.md` (`- [x]`) ;
+   - lance tests, lint et typecheck du projet concerné ;
+   - ne coche **pas** « Sprint validé par l'agent » et ne commit **pas** ;
+   - rend un résumé : ce qui a changé, fichiers touchés, hypothèses prises.
+2. **Agent vérificateur** — vérifie que le travail répond **exactement** au sprint (tâches de `plan.md`, `spec.md`, règles FFT, conventions ci-dessous) et relance tests, lint et typecheck :
+   - s'il manque quelque chose ou si c'est faux : il liste les problèmes, et le sprint retourne à l'agent codeur ;
+   - si c'est bon : il coche « **Sprint validé par l'agent** », puis commit sur la branche courante avec pour message le nom du sprint (ex. `B13`). Pas de push.
+3. Le sprint suivant ne commence **qu'après** le commit du vérificateur.
+4. **Pauses humaines** : l'humain fixe des points d'arrêt (marqués ⏸️ dans `plan.md`). À une pause, s'arrêter et faire le bilan à l'humain : sprints faits, hypothèses prises, questions en suspens. Ne pas aller au-delà sans son accord.
+5. Reste dans le périmètre du sprint : pas de fonctionnalités des sprints suivants « au passage ».
+6. Spec ou règle ambiguë : choisir l'option la plus raisonnable (règlement FFT en priorité), la documenter dans le code et la noter pour le bilan à l'humain. Une décision coûteuse à défaire (choix d'architecture, service externe, donnée sensible) attend la prochaine pause.
 
 ## Architecture (voir spec.md)
 
@@ -37,3 +41,6 @@ Le moteur de règles du Tarot est une logique pure, testable sans réseau. Le se
 - Communication avec l'humain en français.
 - TypeScript strict dans les deux projets.
 - Chaque projet a son propre `CLAUDE.md` (`backend/CLAUDE.md`, `frontend/CLAUDE.md`) avec les règles ci-dessus rappelées.
+- Gestionnaire de paquets : **pnpm** (`/home/dev/.local/share/pnpm/bin/pnpm`).
+- Noms de code en anglais ; la traduction se fait dans l'interface.
+- Règles du jeu : **règlement FFT** (`https://fftarot.fr/assets/documents/ReglementFFT_DonnesLibres.pdf`).
