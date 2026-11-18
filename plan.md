@@ -141,10 +141,10 @@ Référence : [spec.md](spec.md)
 - [x] **Sprint validé par l'agent**
 
 #### Sprint B17 — Déconnexion et reconnexion
-- [ ] Reconnexion avec la même identité dans un délai
-- [ ] Timeout de jeu / abandon
-- [ ] Tests
-- [ ] **Sprint validé par l'agent**
+- [x] Reconnexion avec la même identité dans un délai
+- [x] Timeout de jeu / abandon
+- [x] Tests
+- [x] **Sprint validé par l'agent**
 
 > ⏸️ **Pause humaine** : s'arrêter après B17 et faire le bilan à l'humain.
 

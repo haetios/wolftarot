@@ -144,12 +144,26 @@ const room = await client.joinById(code);
 - Refusals (message `error`): `notPrivate`, `notHost`, `wrongPhase`, `tableNotFull`,
   `invalidPlayerCount`, `tooManyPlayers`.
 
-## What's included
+## Disconnection, reconnection, turn time and abandonment
 
-### Reconnection
+- **Reconnection**: after a network drop, the seat is kept `reconnectionSeconds` (30 s). The SDK
+  retries automatically; the player gets back the same session, identity (`client.auth`), seat
+  and hand. To survive a page reload, the frontend should store `room.reconnectionToken` (e.g. in
+  `sessionStorage`) and call `client.reconnect(token)`. `state.players[...].connected` is `false`
+  meanwhile.
+- **Turn time**: every decision has a deadline, published in `state.turnDeadline` (server
+  `Date.now()` in ms, 0 if none) for a countdown. When it expires, the server plays a safe default
+  move for the player: pass (bidding), first callable card (king call), a legal discard, the first
+  legal card, or "ready" (end of deal).
+- **Abandonment**: a player who leaves a game in progress (consented `leave()`), or who does not
+  come back in time, is marked `abandoned`. Their seat stays and is played automatically after
+  `abandonedActionMs`, until bots arrive (B18). They cannot rejoin that table. When every player
+  has abandoned, the table is closed.
+- **Timings** (`TarotRoom.timing`, server-side only, never a client option):
 
-`TarotRoom.onDrop()` holds a dropped client's seat for 30 seconds via
-`allowReconnection()`. The SDK retries automatically with exponential backoff;
-`onReconnect()` fires if it gets back in time, `onLeave()` if it does not.
-
-- https://docs.colyseus.io/room/reconnection
+  | Setting               | Default | Use                                    |
+  | --------------------- | ------- | -------------------------------------- |
+  | `reconnectionSeconds` | 30      | seat kept after a drop                 |
+  | `turnSeconds`         | 60      | time for each decision                 |
+  | `scoringSeconds`      | 30      | time to say "ready" after a deal       |
+  | `abandonedActionMs`   | 800     | delay before playing an abandoned seat |

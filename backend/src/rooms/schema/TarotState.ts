@@ -21,6 +21,11 @@ export const PlayerState = schema({
   score: t.int32().default(0),
   /** Prêt pour la donne suivante (phase `scoring`). */
   ready: t.boolean().default(false),
+  /**
+   * A quitté la partie en cours, ou n'est pas revenu à temps après une coupure : son siège
+   * est joué automatiquement (en attendant les bots, B18).
+   */
+  abandoned: t.boolean().default(false),
 });
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -88,6 +93,11 @@ export const TarotState = schema({
   dealer: t.int8().default(-1),
   /** Siège qui doit agir, −1 si personne (ou tout le monde, en phase `scoring`). */
   currentSeat: t.int8().default(-1),
+  /**
+   * Échéance de la décision en cours (horodatage en ms, `Date.now()` du serveur) ; 0 si aucune.
+   * Passé ce délai, le serveur joue un coup par défaut à la place du joueur.
+   */
+  turnDeadline: t.float64().default(0),
   /** Joueurs, par sessionId. */
   players: t.map(PlayerState),
 

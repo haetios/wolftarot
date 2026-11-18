@@ -7,6 +7,7 @@ import {
   type AuthContext,
   type Client,
   type CloseCode,
+  type Delayed,
 } from "colyseus";
 
 import {
@@ -37,16 +38,23 @@ import {
   type Deal,
   type PlayerCount,
 } from "../engine/deal.js";
-import { isDogRevealed, makeDiscard, takeDog } from "../engine/dog.js";
+import { discardableCards, isDogRevealed, makeDiscard, takeDog } from "../engine/dog.js";
 import { IllegalActionError } from "../engine/errors.js";
 import {
   attackerSeats,
+  callableCards,
   callKing,
   revealOnDogShown,
   revealOnPlay,
   type KingCall,
 } from "../engine/king-call.js";
-import { isPlayFinished, playCard, startPlay, type PlayState } from "../engine/play.js";
+import {
+  isPlayFinished,
+  legalCardsForCurrentPlayer,
+  playCard,
+  startPlay,
+  type PlayState,
+} from "../engine/play.js";
 import { cryptoRng, type Rng } from "../engine/random.js";
 import { scoreDeal } from "../engine/scoring.js";
 import {
@@ -120,8 +128,24 @@ export function normalizeMatchmakingOptions(options: unknown): void {
  */
 export type TarotClient = Client<{ auth: PlayerIdentity }>;
 
-/** Délai pendant lequel le siège d'un joueur déconnecté lui reste réservé. */
-const RECONNECTION_SECONDS = 30;
+/** Délais de la table, fixés côté serveur (jamais par une option du client). */
+export type TarotTiming = {
+  /** Siège réservé à un joueur après une coupure, pour qu'il se reconnecte. */
+  reconnectionSeconds: number;
+  /** Temps laissé à un joueur pour chaque décision (enchère, appel, écart, carte). */
+  turnSeconds: number;
+  /** Temps laissé en fin de donne pour se déclarer prêt. */
+  scoringSeconds: number;
+  /** Délai avant de jouer à la place d'un joueur qui a abandonné (laisse voir le coup). */
+  abandonedActionMs: number;
+};
+
+export const DEFAULT_TIMING: Readonly<TarotTiming> = {
+  reconnectionSeconds: 30,
+  turnSeconds: 60,
+  scoringSeconds: 30,
+  abandonedActionMs: 800,
+};
 
 const BIDS: readonly Bid[] = ["pass", ...CONTRACTS];
 
@@ -147,6 +171,16 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
   /** Compte Supabase (`sub`) assis à chaque session : connu du serveur seul. */
   private userIdBySession = new Map<string, string>();
   private rng: Rng = cryptoRng;
+  /** Minuteur de la décision en cours (voir `scheduleDeadline`). */
+  private deadlineTimer: Delayed | null = null;
+  /** Décision couverte par le minuteur en cours (voir `scheduleDeadline`). */
+  private deadlineKey: string | null = null;
+  /** Nombre d'actions réussies (humaines ou automatiques) : une nouvelle action = une nouvelle décision. */
+  private actionCount = 0;
+
+  /** Délais utilisés par les tables créées ensuite (modifiables par les tests). */
+  static timing: TarotTiming = { ...DEFAULT_TIMING };
+  private readonly timing: TarotTiming = { ...TarotRoom.timing };
 
   /** Messages des clients. Toute action refusée par les règles renvoie un message `error`. */
   messages = {
@@ -246,6 +280,7 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     if (this.state.players.size === this.state.playerCount) {
       void this.lock();
       this.startDeal(Math.floor(this.rng() * this.state.playerCount));
+      this.scheduleDeadline();
     }
   }
 
@@ -254,7 +289,10 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     if (player) player.connected = false;
     // Non attendu : le framework appelle ensuite onReconnect() ou onLeave().
     // Le catch évite une promesse rejetée non gérée quand la room se ferme.
-    this.allowReconnection(client, RECONNECTION_SECONDS).catch(() => {});
+    // Si le délai expire, Colyseus appelle onLeave() : le joueur est alors considéré comme
+    // ayant abandonné. S'il revient à temps, il retrouve son siège, son identité (`client.auth`)
+    // et sa vue (sa main), que Colyseus recopie sur la nouvelle connexion.
+    this.allowReconnection(client, this.timing.reconnectionSeconds).catch(() => {});
   }
 
   onReconnect(client: Client) {
@@ -277,9 +315,22 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
         this.state.hostSeat = seats.length > 0 ? Math.min(...seats) : -1;
       }
     } else {
-      // Partie en cours : le siège reste occupé (abandon et remplacement : B17).
+      // Partie en cours : le siège reste occupé et sera joué automatiquement.
       player.connected = false;
+      player.abandoned = true;
+      if ([...this.state.players.values()].every((p) => p.abandoned)) {
+        // Plus aucun joueur : inutile de jouer la partie toute seule.
+        this.clearDeadline();
+        void this.disconnect();
+        return;
+      }
+      // Si c'était à lui d'agir, on n'attend pas la fin de son délai.
+      this.scheduleDeadline();
     }
+  }
+
+  onDispose() {
+    this.clearDeadline();
   }
 
   // ─── Actions des joueurs ────────────────────────────────────────────────
@@ -462,6 +513,10 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
   private onReady(seat: number) {
     this.expectPhase("scoring");
     const player = this.playerAt(seat)!;
+    if (player.ready) {
+      // Refusé, pour qu'un « prêt » répété ne compte pas comme une action (voir scheduleDeadline).
+      throw new IllegalActionError("alreadyReady", "Vous êtes déjà prêt");
+    }
     player.ready = true;
     if ([...this.state.players.values()].every((p) => p.ready)) {
       this.startDeal(this.nextDealer());
@@ -588,6 +643,105 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     } catch (error) {
       if (!(error instanceof IllegalActionError)) throw error;
       client.send("error", { code: error.code, message: error.message });
+      return;
+    }
+    this.actionCount++;
+    this.scheduleDeadline();
+  }
+
+  // ─── Délais de jeu ──────────────────────────────────────────────────────
+
+  private clearDeadline() {
+    this.deadlineTimer?.clear();
+    this.deadlineTimer = null;
+    this.deadlineKey = null;
+    this.state.turnDeadline = 0;
+  }
+
+  /**
+   * Programme l'échéance de la décision en cours. À l'expiration, le serveur joue un coup
+   * par défaut (`autoAct`). Un joueur qui a abandonné est joué après un court délai.
+   *
+   * L'échéance n'est reprogrammée que si la décision attendue a changé (nouvelle action, nouvelle
+   * phase, nouvelle donne) ou si le délai doit raccourcir (le joueur attendu vient d'abandonner).
+   * Sinon, rien ne la repousse : aucun message répété ne peut bloquer la table.
+   */
+  private scheduleDeadline() {
+    if (this.ctx === null) {
+      this.clearDeadline();
+      return;
+    }
+
+    let delay: number;
+    let key: string;
+    let action: () => void;
+    if (this.phase === "scoring") {
+      const waiting = [...this.state.players.values()].filter((p) => !p.ready);
+      if (waiting.length === 0) {
+        this.clearDeadline();
+        return;
+      }
+      const onlyAbandoned = waiting.every((p) => p.abandoned);
+      delay = onlyAbandoned ? this.timing.abandonedActionMs : this.timing.scoringSeconds * 1000;
+      // Une seule échéance pour toute la fin de donne : les « prêt » ne la repoussent pas.
+      key = `scoring:${this.state.dealNumber}:${onlyAbandoned}`;
+      action = () => {
+        for (const player of waiting) {
+          // Le dernier « prêt » lance la donne suivante : on s'arrête là.
+          if (this.phase !== "scoring") break;
+          if (!player.ready) this.onReady(player.seat);
+        }
+      };
+    } else {
+      const seat = this.state.currentSeat;
+      const player = this.playerAt(seat);
+      if (seat < 0 || !player) {
+        this.clearDeadline();
+        return;
+      }
+      delay = player.abandoned ? this.timing.abandonedActionMs : this.timing.turnSeconds * 1000;
+      key = `${this.state.dealNumber}:${this.phase}:${seat}:${this.actionCount}:${player.abandoned}`;
+      action = () => this.autoAct(seat);
+    }
+
+    if (key === this.deadlineKey && this.deadlineTimer !== null) return;
+    this.clearDeadline();
+    this.deadlineKey = key;
+    this.state.turnDeadline = Date.now() + delay;
+    this.deadlineTimer = this.clock.setTimeout(() => {
+      this.deadlineTimer = null;
+      this.deadlineKey = null;
+      try {
+        action();
+      } catch (error) {
+        // Un coup par défaut est toujours légal ; une erreur ici serait un bug du serveur.
+        console.error("Coup automatique impossible :", error);
+      }
+      this.actionCount++;
+      this.scheduleDeadline();
+    }, delay);
+  }
+
+  /** Coup par défaut, sûr et légal, joué à la place du siège qui devait agir. */
+  private autoAct(seat: number) {
+    const ctx = this.ctx;
+    if (ctx === null || seat !== this.state.currentSeat) return;
+    const hand = ctx.hands[seat] ?? [];
+    switch (this.phase) {
+      case "bidding":
+        this.onBid(seat, "pass");
+        break;
+      case "calling":
+        this.onCallKing(seat, cardId(callableCards(hand)[0]!));
+        break;
+      case "discarding": {
+        const { dogSize } = DEAL_CONFIGS[this.playerCount];
+        this.onDiscard(seat, discardableCards(hand, dogSize).slice(0, dogSize).map(cardId));
+        break;
+      }
+      case "playing":
+        this.onPlay(seat, cardId(legalCardsForCurrentPlayer(ctx.play!)[0]!));
+        break;
     }
   }
 
