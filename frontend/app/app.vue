@@ -1,6 +1,19 @@
+<script setup lang="ts">
+useHead({
+  htmlAttrs: { lang: 'fr' },
+})
+
+useSeoMeta({
+  title: 'Wolftarot',
+  description: 'Jouez au Tarot en ligne.',
+})
+</script>
+
 <template>
   <UApp>
     <NuxtRouteAnnouncer />
-    <NuxtWelcome />
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
   </UApp>
 </template>

@@ -6,7 +6,6 @@ export const Player = schema({
 export type Player = SchemaType<typeof Player>;
 
 export const MyRoomState = schema({
-
   players: t.map(Player),
 
   /** sessionId of whoever may act right now; empty before the match starts. */
@@ -16,6 +15,5 @@ export const MyRoomState = schema({
   turnDeadline: t.number().default(0),
 
   turnCount: t.uint16().default(0),
-
 });
 export type MyRoomState = SchemaType<typeof MyRoomState>;

@@ -18,8 +18,8 @@ Référence : [spec.md](spec.md)
 #### Sprint B0 — Initialisation du projet
 - [x] Créer `backend/` avec `pnpm create colyseus-app@latest ./backend` (TypeScript, preset turn-based, layout server)
 - [x] Installer Colyseus, serveur qui démarre
-- [ ] Route `GET /health`
-- [ ] Lint + format + Vitest configurés, 1 test de fumée
+- [x] Route `GET /health`
+- [x] Lint + format + Vitest configurés, 1 test de fumée
 - [x] README minimal (lancer, tester)
 - [ ] **Sprint validé par l'humain**
 
@@ -261,8 +261,8 @@ Référence : [spec.md](spec.md)
 #### Sprint F0 — Initialisation du projet
 - [x] Créer `frontend/` avec `pnpm create nuxt@latest ./frontend` (template minimal)
 - [x] Installer Nuxt UI et Tailwind (module `@nuxt/ui`, `main.css`, `<UApp>`)
-- [ ] Page d'accueil vide + layout
-- [ ] Lint + format + Vitest
+- [x] Page d'accueil vide + layout
+- [x] Lint + format + Vitest
 - [ ] **Sprint validé par l'humain**
 
 #### Sprint F1 — Design system mobile-first

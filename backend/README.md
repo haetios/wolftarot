@@ -7,7 +7,8 @@ This project was created with [⚔️ `create-colyseus-app`](https://github.com/
 ## :crossed_swords: Usage
 
 ```
-npm start
+pnpm install
+pnpm start
 ```
 
 Then open http://localhost:2567 for the playground, or /monitor for the monitor.
@@ -19,15 +20,19 @@ Then open http://localhost:2567 for the playground, or /monitor for the monitor.
 - `src/rooms/MyRoom.ts`: your room handler
 - `src/rooms/schema/MyRoomState.ts`: the state synchronized to every client in the room
 - `test/MyRoom.test.ts`: boots the real server and connects a real client
-- `loadtest/example.ts`: scriptable client for `npm run loadtest`
+- `loadtest/example.ts`: scriptable client for `pnpm loadtest`
 - `ecosystem.config.cjs`: pm2 configuration, used when deploying to Colyseus Cloud
 
 ## Scripts
 
-- `npm start`: run the server in watch mode (`tsx watch src/index.ts`)
-- `npm test`: run the mocha test suite
-- `npm run build`: compile to `build/`
-- `npm run loadtest`: connect N simulated clients with [`@colyseus/loadtest`](https://github.com/colyseus/colyseus-loadtest/)
+- `pnpm start`: run the server in watch mode (`tsx watch src/index.ts`)
+- `pnpm test`: run the Vitest suite (`pnpm test:watch` in watch mode)
+- `pnpm typecheck`: TypeScript check (strict)
+- `pnpm lint`: ESLint
+- `pnpm format` / `pnpm format:check`: Prettier
+- `pnpm build`: compile to `build/`
+- `pnpm loadtest`: connect N simulated clients with [`@colyseus/loadtest`](https://github.com/colyseus/colyseus-loadtest/)
+- `GET /health`: returns `{"status":"ok"}`
 
 ## What's included
 

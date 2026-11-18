@@ -15,21 +15,24 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
      * Ignored unless it is the sender's turn — turn order is the server's to
      * enforce, never the client's to claim.
      */
-    play: (client: Client, message: any) => {
-      if (this.state.currentTurn !== client.sessionId) { return; }
+    play: (client: Client, _message: unknown) => {
+      if (this.state.currentTurn !== client.sessionId) {
+        return;
+      }
 
       const player = this.state.players.get(client.sessionId);
-      if (!player) { return; }
+      if (!player) {
+        return;
+      }
 
       player.score++;
       this.nextTurn();
     },
   };
 
-  onCreate(options: any) {
-  }
+  onCreate(_options: unknown) {}
 
-  onJoin(client: Client, options: any) {
+  onJoin(client: Client, _options: unknown) {
     console.log(client.sessionId, "joined!");
     this.state.players.set(client.sessionId, new Player());
 
@@ -44,7 +47,9 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
     const wasTheirTurn = this.state.currentTurn === client.sessionId;
 
     this.state.players.delete(client.sessionId);
-    if (wasTheirTurn) { this.nextTurn(); }
+    if (wasTheirTurn) {
+      this.nextTurn();
+    }
   }
 
   onDispose() {
@@ -75,7 +80,7 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
    * suspended tab, a tunnel change. Holding the seat lets the SDK retry into the
    * same session, so the player keeps their entity and their place in the room.
    */
-  onDrop(client: Client, code: CloseCode) {
+  onDrop(client: Client, _code: CloseCode) {
     // Deliberately not awaited: the framework routes the outcome to onReconnect()
     // or onLeave() by itself. The catch is only here because the promise also
     // rejects when the room is already disposing (server shutdown), which would

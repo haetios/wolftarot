@@ -13,7 +13,12 @@
     "loadtest": "tsx loadtest/example.ts --room my_room --numClients 2",
     "build": "npm run clean && tsc -p tsconfig.build.json",
     "clean": "rimraf build",
-    "test": "mocha -r tsx test/**.test.ts --exit --timeout 15000"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "author": "",
   "license": "UNLICENSED",
@@ -21,12 +26,15 @@
     "@colyseus/loadtest": "^0.18.1",
     "@colyseus/sdk": "^0.18.1",
     "@colyseus/testing": "^0.18.5",
+    "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
-    "@types/mocha": "^10.0.1",
-    "mocha": "^11.7.5",
+    "eslint": "^10.15.0",
+    "prettier": "^3.10.1",
     "rimraf": "^5.0.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.0.4"
+    "typescript": "^5.0.4",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^5.1.0"
   },
   "dependencies": {
     "@colyseus/schema": "^5.0.14",
