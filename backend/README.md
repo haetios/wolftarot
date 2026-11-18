@@ -101,6 +101,27 @@ The player's settings (`settings` table, base order of the cards in hand) can be
 `src/profiles/hand-order.ts` (`HandOrder`, `DEFAULT_HAND_ORDER`, `parseHandOrder`, `sortHand`)
 and are meant to be reused by the frontend settings page.
 
+## Free games (matchmaking)
+
+A free online game uses Colyseus' built-in matchmaking, with one queue per table size:
+
+```ts
+client.auth.token = supabaseAccessToken;
+const room = await client.joinOrCreate("tarot", { playerCount: 4 }); // 3, 4 or 5
+```
+
+- Players asking for the same size share a table; sizes are never mixed (`filterBy(["playerCount"])`).
+- `playerCount` defaults to 4 when omitted; any other value than 3, 4 or 5 is refused
+  (`MATCHMAKE_INVALID_CRITERIA`). It is normalized in `TarotRoom.onAuth`, before the table search.
+- Queue feedback: while `state.phase === "waiting"`, the table holds `state.players.size` of
+  `state.playerCount` players. When it is full, it is locked and the first deal starts.
+- A seat freed before the game starts is offered again by the matchmaking.
+- One account, one seat: the same Supabase user cannot sit twice at a table
+  (`ALREADY_SEATED`, code 4090). A second tab of the same account is sent to the same waiting
+  table by `joinOrCreate`, then refused: the frontend should show "already at a table".
+- Matchmaking options must be a JSON object; anything else (string, number, `null`, array) is
+  refused with `MATCHMAKE_INVALID_CRITERIA`, so the size filter can never be bypassed.
+
 ## What's included
 
 ### Reconnection

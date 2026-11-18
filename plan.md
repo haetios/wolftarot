@@ -4,7 +4,7 @@ Référence : [spec.md](spec.md)
 
 > **Règles d'utilisation (voir CLAUDE.md)**
 > - Un sprint = une petite livraison, vérifiable.
-> - **Agent codeur** : implémente le sprint et coche les tâches (`- [x]`).
+> - **Codeur (Claude Code, session principale)** : implémente le sprint et coche les tâches (`- [x]`).
 > - **Agent vérificateur** : contrôle le sprint, coche « Sprint validé par l'agent » et commit avec le nom du sprint (ex. `B13`).
 > - **Pas de nouveau sprint avant le commit du vérificateur.** Arrêt obligatoire aux pauses humaines ⏸️.
 > - Ordre : tout le Backend (B0 → B30), puis le Frontend (F0 → F22).
@@ -128,10 +128,10 @@ Référence : [spec.md](spec.md)
 - [x] **Sprint validé par l'agent**
 
 #### Sprint B15 — Parties libres multijoueur
-- [ ] Matchmaking : file d'attente par taille de table (3 / 4 / 5)
-- [ ] Démarrage quand la table est complète
-- [ ] Tests
-- [ ] **Sprint validé par l'agent**
+- [x] Matchmaking : file d'attente par taille de table (3 / 4 / 5)
+- [x] Démarrage quand la table est complète
+- [x] Tests
+- [x] **Sprint validé par l'agent**
 
 #### Sprint B16 — Tables privées
 - [ ] Création d'une table privée avec code

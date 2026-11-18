@@ -228,12 +228,17 @@ describe("TarotRoom : déroulement d'une donne", () => {
       await table.bid("guard");
       const taker = table.state.takerSeat;
       const hand = table.hand(taker);
-      // Une carte interdite (Roi, sinon bout), complétée par cinq cartes autorisées.
-      const illegal = hand.find((c) => c.kind === "suit" && c.rank === 14) ?? hand.find(isOudler)!;
+      // Une carte interdite, complétée par cinq cartes autorisées : un Roi, sinon un bout,
+      // sinon un atout (interdit tant qu'il reste au moins 6 cartes de couleur hors Rois,
+      // ce qui est forcément le cas d'une main de 30 cartes sans Roi ni bout).
+      const illegal =
+        hand.find((c) => c.kind === "suit" && c.rank === 14) ??
+        hand.find(isOudler) ??
+        hand.find((c) => c.kind === "trump")!;
       const allowed = discardableCards(hand, 6).filter((c) => c !== illegal);
       const bad = [illegal, ...allowed.slice(0, 5)];
       const code = await table.sendExpectingError(taker, "discard", { cards: bad.map(id) });
-      expect(["oudlerInDiscard", "kingInDiscard"]).toContain(code);
+      expect(["kingInDiscard", "oudlerInDiscard", "trumpInDiscard"]).toContain(code);
       expect(table.state.phase).toBe("discarding");
     });
 

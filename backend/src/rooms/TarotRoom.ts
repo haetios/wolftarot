@@ -63,6 +63,41 @@ export type TarotRoomOptions = {
   playerCount?: number;
 };
 
+/** Taille de table quand le client ne la précise pas. */
+export const DEFAULT_PLAYER_COUNT = 4;
+
+/**
+ * Un même compte occupe déjà un siège de cette table (deux onglets, par exemple) : refusé,
+ * sinon il verrait deux mains. La reconnexion à son propre siège relève de B17.
+ */
+export const ALREADY_SEATED = 4090;
+
+/**
+ * Normalise les options de matchmaking envoyées par le client (non fiables), **en place** :
+ * Colyseus filtre les tables sur `playerCount` (`filterBy` dans `app.config.ts`), et une option
+ * absente ne filtrerait rien — le joueur pourrait arriver à une table de n'importe quelle taille.
+ * On fixe donc la valeur par défaut avant la recherche de table, et on refuse une valeur invalide.
+ */
+export function normalizeMatchmakingOptions(options: unknown): void {
+  // Le corps de la requête de matchmaking est passé tel quel : une primitive (`"abc"`, `42`),
+  // `null` ou un tableau échapperait au filtre `playerCount` (filtre vide → n'importe quelle table).
+  if (!isPlainObject(options)) {
+    throw new ServerError(
+      ErrorCode.MATCHMAKE_INVALID_CRITERIA,
+      "Options de matchmaking invalides : un objet est attendu",
+    );
+  }
+  const opts = options;
+  if (opts.playerCount === undefined) {
+    opts.playerCount = DEFAULT_PLAYER_COUNT;
+  } else if (!isPlayerCount(opts.playerCount)) {
+    throw new ServerError(
+      ErrorCode.MATCHMAKE_INVALID_CRITERIA,
+      `Nombre de joueurs invalide : ${String(opts.playerCount)} (attendu : 3, 4 ou 5)`,
+    );
+  }
+}
+
 /**
  * Client authentifié : `client.auth` est l'identité renvoyée par `TarotRoom.onAuth`.
  * Elle reste côté serveur (ni le jeton ni l'identifiant Supabase ne sont synchronisés).
@@ -93,6 +128,8 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
   state = new TarotState();
 
   private ctx: DealContext | null = null;
+  /** Compte Supabase (`sub`) assis à chaque session : connu du serveur seul. */
+  private userIdBySession = new Map<string, string>();
   private rng: Rng = cryptoRng;
 
   /** Messages des clients. Toute action refusée par les règles renvoie un message `error`. */
@@ -112,7 +149,7 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
   };
 
   onCreate(options: TarotRoomOptions = {}) {
-    const playerCount = options.playerCount ?? 4;
+    const playerCount = options.playerCount ?? DEFAULT_PLAYER_COUNT;
     if (!isPlayerCount(playerCount)) {
       throw new Error(`Nombre de joueurs invalide : ${String(playerCount)} (attendu : 3, 4 ou 5)`);
     }
@@ -129,11 +166,14 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
    */
   static async onAuth(
     token: string | undefined,
-    _options: unknown,
+    options: unknown,
     _context: AuthContext,
   ): Promise<PlayerIdentity> {
     try {
-      return await authenticate(token);
+      const identity = await authenticate(token);
+      // Appelé par le matchmaking avant la recherche de table, avec le même objet d'options.
+      normalizeMatchmakingOptions(options);
+      return identity;
     } catch (error) {
       if (!(error instanceof AuthError)) throw error;
       throw new ServerError(
@@ -151,7 +191,12 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
       throw new ServerError(ErrorCode.AUTH_FAILED, "Authentification refusée : identité absente");
     }
 
+    if ([...this.userIdBySession.values()].includes(identity.id)) {
+      throw new ServerError(ALREADY_SEATED, "Vous êtes déjà assis à cette table");
+    }
+
     const seat = this.freeSeat();
+    this.userIdBySession.set(client.sessionId, identity.id);
     const player = new PlayerState();
     player.sessionId = client.sessionId;
     player.seat = seat;
@@ -191,6 +236,7 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     if (this.phase === "waiting") {
       // Avant le début de la partie, le siège est libéré pour un autre joueur.
       this.state.players.delete(client.sessionId);
+      this.userIdBySession.delete(client.sessionId);
       void this.unlock();
     } else {
       // Partie en cours : le siège reste occupé (abandon et remplacement : B17).
@@ -504,6 +550,13 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     player.hand.push(...hand.map(cardId));
     player.handSize = hand.length;
   }
+}
+
+/** Objet « simple » (littéral ou JSON analysé) : ni primitive, ni `null`, ni tableau, ni instance. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
 }
 
 /** Champ d'un message client (non fiable : peut être n'importe quoi). */
