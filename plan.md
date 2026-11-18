@@ -59,19 +59,20 @@ Référence : [spec.md](spec.md)
 - [x] Écart : cartes autorisées (pas de roi, pas de bout, atouts en dernier recours)
 - [x] Garde sans / garde contre : chien non pris en main
 - [x] Tests
-- [ ] **Sprint validé par l'humain**
+- [x] **Sprint validé par l'humain**
 
 #### Sprint B6 — Coups légaux
-- [ ] Obligation de fournir
-- [ ] Obligation de couper, puis de surmonter
-- [ ] Gestion de l'Excuse (jouable à tout moment, jamais obligatoire)
-- [ ] Fonction `getLegalCards(hand, trick)`
-- [ ] Tests
+- [x] Obligation de fournir
+- [x] Obligation de couper, puis de surmonter
+- [x] Gestion de l'Excuse (jouable à tout moment, jamais obligatoire)
+- [x] Fonction `getLegalCards(hand, trick)`
+- [x] Tests
 - [ ] **Sprint validé par l'humain**
 
 #### Sprint B7 — Pli et partie
 - [ ] Détermination du gagnant du pli
 - [ ] Excuse : reste à son camp, échange de carte
+- [ ] Excuse jouée au dernier pli : elle change de camp (va au gagnant du pli), sauf chelem où elle peut remporter le dernier pli
 - [ ] Enchaînement des plis jusqu'à la fin de la donne
 - [ ] Tests
 - [ ] **Sprint validé par l'humain**
@@ -159,6 +160,7 @@ Référence : [spec.md](spec.md)
 - [ ] Le bot enregistre les annonces formelles des joueurs et des autres bots
 - [ ] Mémoire des cartes jouées (coupes, atouts restants)
 - [ ] Le bot adapte son jeu à ces informations
+- [ ] Le bot ne garde pas l'Excuse pour le dernier pli (sauf chelem)
 - [ ] Tests ciblés par scénario
 - [ ] **Sprint validé par l'humain**
 
