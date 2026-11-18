@@ -21,14 +21,14 @@ Référence : [spec.md](spec.md)
 - [x] Route `GET /health`
 - [x] Lint + format + Vitest configurés, 1 test de fumée
 - [x] README minimal (lancer, tester)
-- [ ] **Sprint validé par l'humain**
+- [X] **Sprint validé par l'humain**
 
 #### Sprint B1 — Cartes et paquet
-- [ ] Types `Card` (couleur, valeur, atout, excuse)
-- [ ] Génération du paquet de 78 cartes
-- [ ] Points par carte, bouts (petit, 21, excuse), total de 91 points
-- [ ] Mélange (RNG injectable pour tester)
-- [ ] Tests unitaires
+- [x] Types `Card` (couleur, valeur, atout, excuse)
+- [x] Génération du paquet de 78 cartes
+- [x] Points par carte, bouts (petit, 21, excuse), total de 91 points
+- [x] Mélange (RNG injectable pour tester)
+- [x] Tests unitaires
 - [ ] **Sprint validé par l'humain**
 
 #### Sprint B2 — Distribution
@@ -263,7 +263,7 @@ Référence : [spec.md](spec.md)
 - [x] Installer Nuxt UI et Tailwind (module `@nuxt/ui`, `main.css`, `<UApp>`)
 - [x] Page d'accueil vide + layout
 - [x] Lint + format + Vitest
-- [ ] **Sprint validé par l'humain**
+- [X] **Sprint validé par l'humain**
 
 #### Sprint F1 — Design system mobile-first
 - [ ] Thème (couleurs, typographie, mode clair/sombre)
