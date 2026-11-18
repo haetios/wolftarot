@@ -10,14 +10,14 @@ import {
 /**
  * Import your Room files
  */
-import { MyRoom } from "./rooms/MyRoom.js";
+import { TarotRoom } from "./rooms/TarotRoom.js";
 
 const server = defineServer({
   /**
    * Define your room handlers:
    */
   rooms: {
-    my_room: defineRoom(MyRoom),
+    tarot: defineRoom(TarotRoom),
   },
 
   /**

@@ -17,9 +17,10 @@ Then open http://localhost:2567 for the playground, or /monitor for the monitor.
 
 - `src/index.ts`: entry point — leave it alone if you plan to deploy to Colyseus Cloud
 - `src/app.config.ts`: server configuration — rooms, HTTP routes, express middleware
-- `src/rooms/MyRoom.ts`: your room handler
-- `src/rooms/schema/MyRoomState.ts`: the state synchronized to every client in the room
-- `test/MyRoom.test.ts`: boots the real server and connects a real client
+- `src/engine/`: Tarot rules engine — pure logic, no Colyseus (cards, deal, bidding, play, scoring…)
+- `src/rooms/TarotRoom.ts`: the game room (`tarot`), options `{ playerCount: 3 | 4 | 5 }`
+- `src/rooms/schema/TarotState.ts`: the state synchronized to clients (a hand is only sent to its owner)
+- `test/engine/`: rules engine tests; `test/rooms/`: boots the real server and connects real clients
 - `loadtest/example.ts`: scriptable client for `pnpm loadtest`
 - `ecosystem.config.cjs`: pm2 configuration, used when deploying to Colyseus Cloud
 
@@ -36,22 +37,9 @@ Then open http://localhost:2567 for the playground, or /monitor for the monitor.
 
 ## What's included
 
-### Turn-based
-
-`MyRoom` owns the turn order: `state.currentTurn` names whose turn it is, and a
-`play` message from anyone else is ignored. The room locks once it is full, and
-each turn carries a deadline — a `clock.setTimeout` skips a player who runs out
-the clock, so one idle client cannot stall the match.
-
-`state.turnDeadline` is stamped from `this.clock.currentTime`, the room's own
-clock, so a reconnecting client can render the remaining time without the server
-sending a countdown.
-
-- https://docs.colyseus.io/room/timing-events
-
 ### Reconnection
 
-`MyRoom.onDrop()` holds a dropped client's seat for 30 seconds via
+`TarotRoom.onDrop()` holds a dropped client's seat for 30 seconds via
 `allowReconnection()`. The SDK retries automatically with exponential backoff;
 `onReconnect()` fires if it gets back in time, `onLeave()` if it does not.
 

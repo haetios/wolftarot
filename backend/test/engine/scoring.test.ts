@@ -257,7 +257,8 @@ describe("scoreDeal sur des donnes complètes aléatoires", () => {
 
         const result = scoreDeal({
           contract,
-          campCards: campCards(state),
+          play: state,
+          announcements: [],
           dog: deal.dog,
           discard: [],
           playerCount: players,

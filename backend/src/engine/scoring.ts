@@ -1,11 +1,12 @@
-import { countPoints, isOudler, type Card } from "./cards.js";
+import { HANDFUL_BONUS, type Announcement } from "./announcements.js";
+import { cardId, countPoints, isOudler, type Card } from "./cards.js";
 import type { Contract } from "./bidding.js";
 import type { PlayerCount } from "./deal.js";
-import type { CampCards } from "./play.js";
+import { campCards, campOf, type Camp, type CampCards, type PlayState } from "./play.js";
 
 /**
- * Comptage et marque d'une donne, d'après le règlement FFT (donnes libres).
- * Les primes (poignée, petit au bout, chelem) viendront en B9/B10.
+ * Comptage et marque d'une donne, d'après le règlement FFT (donnes libres) :
+ * marque du contrat, puis primes de poignée, de petit au bout et de chelem.
  */
 
 /** Points à réaliser par l'attaque selon le nombre de bouts dans ses plis (0, 1, 2 ou 3). */
@@ -133,14 +134,111 @@ export function distributeScore(score: number, seats: Seats): number[] {
   });
 }
 
+/** Prime de petit au bout, avant multiplication par le coefficient du contrat. */
+export const PETIT_AU_BOUT_BONUS = 10;
+
+/** Primes de chelem (non multipliées). */
+export const SLAM_BONUS = {
+  /** Chelem annoncé et réalisé. */
+  announcedAndMade: 400,
+  /** Chelem non annoncé mais réalisé. */
+  madeNotAnnounced: 200,
+  /** Chelem annoncé mais non réalisé : déduit du total de l'attaque. */
+  announcedNotMade: 200,
+  /** Chelem infligé par la défense : prime pour chaque défenseur. */
+  madeByDefense: 200,
+} as const;
+
+/** Camp qui a remporté tous les plis, ou `null`. */
+export function slamCamp(play: PlayState): Camp | null {
+  const camps = new Set(play.completedTricks.map((trick) => campOf(play, trick.winner)));
+  if (camps.size !== 1) return null;
+  return [...camps][0]!;
+}
+
+/**
+ * Camp qui mène le Petit au bout, ou `null` : le camp qui remporte le dernier pli,
+ * si ce pli contient le Petit. En cas de chelem où l'Excuse est jouée en dernier,
+ * le Petit est considéré au bout s'il est joué à l'avant-dernier pli.
+ */
+export function petitAuBoutCamp(play: PlayState): Camp | null {
+  const tricks = play.completedTricks;
+  const last = tricks[tricks.length - 1];
+  if (last === undefined) return null;
+
+  const lead = last.cards[0];
+  const excuseWonLastTrick = lead?.card.kind === "excuse" && last.winner === lead.seat;
+  const boutTrick = excuseWonLastTrick ? tricks[tricks.length - 2] : last;
+  if (boutTrick === undefined) return null;
+
+  const hasPetit = boutTrick.cards.some(({ card }) => cardId(card) === "trump-1");
+  return hasPetit ? campOf(play, boutTrick.winner) : null;
+}
+
+/** Primes vues de l'attaque, par défenseur (positives : la défense paie ; négatives : elle reçoit). */
+export type Bonuses = {
+  /** Poignées : la prime revient au camp qui gagne la donne, quel que soit l'annonceur. */
+  readonly handful: number;
+  /** Petit au bout : 10 × coefficient, au camp qui le mène, quel que soit le résultat. */
+  readonly petitAuBout: number;
+  readonly slam: number;
+};
+
+export type BonusInput = {
+  readonly contract: Contract;
+  readonly fulfilled: boolean;
+  readonly announcements: readonly Announcement[];
+  readonly play: PlayState;
+};
+
+export function computeBonuses({ contract, fulfilled, announcements, play }: BonusInput): Bonuses {
+  const winnerSign = fulfilled ? 1 : -1;
+  const handful = announcements.reduce(
+    (total, a) => (a.kind === "handful" ? total + HANDFUL_BONUS[a.level] * winnerSign : total),
+    0,
+  );
+
+  const petitCamp = petitAuBoutCamp(play);
+  const petitValue = PETIT_AU_BOUT_BONUS * CONTRACT_MULTIPLIERS[contract];
+  const petitAuBout =
+    petitCamp === "attack" ? petitValue : petitCamp === "defense" ? -petitValue : 0;
+
+  const announced = announcements.some((a) => a.kind === "slam");
+  const made = slamCamp(play);
+  let slam = 0;
+  if (made === "attack") {
+    slam += announced ? SLAM_BONUS.announcedAndMade : SLAM_BONUS.madeNotAnnounced;
+  } else if (announced) {
+    slam -= SLAM_BONUS.announcedNotMade;
+  }
+  if (made === "defense") slam -= SLAM_BONUS.madeByDefense;
+
+  return { handful, petitAuBout, slam };
+}
+
 export type DealScore = Tally &
   ContractOutcome & {
+    readonly bonuses: Bonuses;
+    /** Marque d'un défenseur, vue de l'attaque, primes comprises. */
+    readonly total: number;
     /** Marque de chaque joueur, par siège. */
     readonly playerScores: number[];
   };
 
-export function scoreDeal(input: TallyInput & Seats): DealScore {
-  const counted = tally(input);
+export type ScoreDealInput = Seats & {
+  readonly contract: Contract;
+  /** Donne terminée. */
+  readonly play: PlayState;
+  readonly dog: readonly Card[];
+  /** L'écart du preneur (Petite et Garde), vide sinon. */
+  readonly discard: readonly Card[];
+  readonly announcements: readonly Announcement[];
+};
+
+export function scoreDeal(input: ScoreDealInput): DealScore {
+  const counted = tally({ ...input, campCards: campCards(input.play) });
   const outcome = contractOutcome(counted.attackPoints, counted.attackOudlers, input.contract);
-  return { ...counted, ...outcome, playerScores: distributeScore(outcome.score, input) };
+  const bonuses = computeBonuses({ ...input, fulfilled: outcome.fulfilled });
+  const total = outcome.score + bonuses.handful + bonuses.petitAuBout + bonuses.slam;
+  return { ...counted, ...outcome, bonuses, total, playerScores: distributeScore(total, input) };
 }

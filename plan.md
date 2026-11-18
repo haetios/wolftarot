@@ -81,29 +81,29 @@ Référence : [spec.md](spec.md)
 - [x] Décompte des points (attaque / défense), nombre de bouts, contrat rempli ou non
 - [x] Calcul du score par joueur (3, 4 et 5 joueurs)
 - [x] Tests
-- [ ] **Sprint validé par l'humain**
+- [x] **Sprint validé par l'humain**
 
 #### Sprint B9 — Annonces formelles (partie 1)
 > Deux familles d'annonces : les **formelles** (contrats, poignée, chelem, petit au bout), traitées ici et en B10, et la **signalisation** de la défense (signaux par les cartes jouées, règles dans spec.md), traitée en B20 à B23.
 
-- [ ] Modèle d'annonce + moment où elle est autorisée
-- [ ] Poignées **simple, double et triple** (seuils selon le nombre de joueurs), validation des atouts montrés (l'Excuse compte comme atout)
-- [ ] Tests
-- [ ] **Sprint validé par l'humain**
+- [x] Modèle d'annonce + moment où elle est autorisée
+- [x] Poignées **simple, double et triple** (seuils selon le nombre de joueurs), validation des atouts montrés (l'Excuse compte comme atout)
+- [x] Tests
+- [x] **Sprint validé par l'humain**
 
 #### Sprint B10 — Annonces formelles (partie 2)
-- [ ] Chelem, petit au bout, autres annonces formelles FFT
-- [ ] Bonus au score
-- [ ] Tests
-- [ ] **Sprint validé par l'humain**
+- [x] Chelem, petit au bout, autres annonces formelles FFT
+- [x] Bonus au score
+- [x] Tests
+- [x] **Sprint validé par l'humain**
 
 ### Réseau (Colyseus)
 
 #### Sprint B11 — Room Colyseus de base
-- [ ] `TarotRoom` avec schéma d'état (joueurs, phase, main, pli en cours)
-- [ ] Rejoindre / quitter la room
-- [ ] Une main n'est visible que par son propriétaire
-- [ ] Test d'intégration avec un client Colyseus
+- [x] `TarotRoom` avec schéma d'état (joueurs, phase, main, pli en cours)
+- [x] Rejoindre / quitter la room
+- [x] Une main n'est visible que par son propriétaire
+- [x] Test d'intégration avec un client Colyseus
 - [ ] **Sprint validé par l'humain**
 
 #### Sprint B12 — Déroulement d'une donne via la room
