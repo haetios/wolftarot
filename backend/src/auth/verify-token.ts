@@ -39,6 +39,8 @@ export type AuthFailureReason =
   | "anonymousUser"
   /** Ni JWKS ni secret configuré : toute connexion est refusée. */
   | "notConfigured"
+  /** Jeton valide, mais aucun profil (compte supprimé, par exemple) : voir `identity.ts`. */
+  | "profileNotFound"
   /** Échec inattendu (JWKS injoignable, par exemple). */
   | "verificationFailed";
 

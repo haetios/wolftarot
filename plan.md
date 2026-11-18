@@ -122,10 +122,10 @@ Référence : [spec.md](spec.md)
 - [x] **Sprint validé par l'agent**
 
 #### Sprint B14 — Profil et paramètres
-- [ ] Table Supabase `profiles` (pseudo unique) + RLS
-- [ ] Table/colonne des paramètres (ordre de base de la main)
-- [ ] Accès côté backend + tests
-- [ ] **Sprint validé par l'agent**
+- [x] Table Supabase `profiles` (pseudo unique) + RLS
+- [x] Table/colonne des paramètres (ordre de base de la main)
+- [x] Accès côté backend + tests
+- [x] **Sprint validé par l'agent**
 
 #### Sprint B15 — Parties libres multijoueur
 - [ ] Matchmaking : file d'attente par taille de table (3 / 4 / 5)

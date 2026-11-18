@@ -155,7 +155,8 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     const player = new PlayerState();
     player.sessionId = client.sessionId;
     player.seat = seat;
-    // Pseudo de repli tant que l'utilisateur n'en a pas (profils : B14).
+    // Pseudo de repli si le profil est illisible (Supabase injoignable) ou, sans profils
+    // configurés, si `user_metadata` n'en donne pas (voir `resolvePlayerIdentity`).
     player.name = identity.name ?? `Joueur ${seat + 1}`;
     this.state.players.set(client.sessionId, player);
 

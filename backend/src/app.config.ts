@@ -11,11 +11,13 @@ import {
  * Import your Room files
  */
 import { TarotRoom } from "./rooms/TarotRoom.js";
-import { defaultTokenVerifier } from "./auth/authenticate.js";
+import { defaultProfileRepository, defaultTokenVerifier } from "./auth/authenticate.js";
 
-// Lit la configuration Supabase dès le démarrage : une valeur invalide arrête le serveur
-// avec une erreur explicite, plutôt qu'à la première connexion.
+// Lit la configuration Supabase dès le démarrage : une valeur invalide (dont une clé
+// service_role à la place de la clé publique) arrête le serveur avec une erreur explicite,
+// plutôt qu'à la première connexion.
 defaultTokenVerifier();
+defaultProfileRepository();
 
 const server = defineServer({
   /**
