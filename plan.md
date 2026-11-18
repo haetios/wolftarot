@@ -67,14 +67,14 @@ Référence : [spec.md](spec.md)
 - [x] Gestion de l'Excuse (jouable à tout moment, jamais obligatoire)
 - [x] Fonction `getLegalCards(hand, trick)`
 - [x] Tests
-- [ ] **Sprint validé par l'humain**
+- [x] **Sprint validé par l'humain**
 
 #### Sprint B7 — Pli et partie
-- [ ] Détermination du gagnant du pli
-- [ ] Excuse : reste à son camp, échange de carte
-- [ ] Excuse jouée au dernier pli : elle change de camp (va au gagnant du pli), sauf chelem où elle peut remporter le dernier pli
-- [ ] Enchaînement des plis jusqu'à la fin de la donne
-- [ ] Tests
+- [x] Détermination du gagnant du pli
+- [x] Excuse : reste à son camp, échange de carte
+- [x] Excuse jouée au dernier pli : elle change de camp (va au gagnant du pli), sauf chelem où elle peut remporter le dernier pli
+- [x] Enchaînement des plis jusqu'à la fin de la donne
+- [x] Tests
 - [ ] **Sprint validé par l'humain**
 
 #### Sprint B8 — Comptage et score
