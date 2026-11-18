@@ -134,11 +134,11 @@ Référence : [spec.md](spec.md)
 - [x] **Sprint validé par l'agent**
 
 #### Sprint B16 — Tables privées
-- [ ] Création d'une table privée avec code
-- [ ] Rejoindre par code
-- [ ] Hôte : démarrer la partie, choisir 3 / 4 / 5 joueurs
-- [ ] Tests
-- [ ] **Sprint validé par l'agent**
+- [x] Création d'une table privée avec code
+- [x] Rejoindre par code
+- [x] Hôte : démarrer la partie, choisir 3 / 4 / 5 joueurs
+- [x] Tests
+- [x] **Sprint validé par l'agent**
 
 #### Sprint B17 — Déconnexion et reconnexion
 - [ ] Reconnexion avec la même identité dans un délai

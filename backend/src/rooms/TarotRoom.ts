@@ -1,6 +1,7 @@
 import { StateView } from "@colyseus/schema";
 import {
   ErrorCode,
+  matchMaker,
   Room,
   ServerError,
   type AuthContext,
@@ -61,7 +62,16 @@ import {
 export type TarotRoomOptions = {
   /** 3, 4 ou 5 joueurs (4 par défaut). */
   playerCount?: number;
+  /**
+   * Table privée (`client.create("tarot", { privateTable: true })`) : absente du matchmaking,
+   * rejointe par son code avec `client.joinById(code)`. (`private` est un nom réservé par Colyseus.)
+   */
+  privateTable?: boolean;
 };
+
+/** Alphabet des codes de table privée : sans 0/O, 1/I/L, pour se lire et se dicter sans erreur. */
+export const PRIVATE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+export const PRIVATE_CODE_LENGTH = 6;
 
 /** Taille de table quand le client ne la précise pas. */
 export const DEFAULT_PLAYER_COUNT = 4;
@@ -88,6 +98,12 @@ export function normalizeMatchmakingOptions(options: unknown): void {
     );
   }
   const opts = options;
+  if (opts.privateTable !== undefined && typeof opts.privateTable !== "boolean") {
+    throw new ServerError(
+      ErrorCode.MATCHMAKE_INVALID_CRITERIA,
+      "Option privateTable invalide : un booléen est attendu",
+    );
+  }
   if (opts.playerCount === undefined) {
     opts.playerCount = DEFAULT_PLAYER_COUNT;
   } else if (!isPlayerCount(opts.playerCount)) {
@@ -146,15 +162,27 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     play: (client: Client, message: unknown) =>
       this.handle(client, (seat) => this.onPlay(seat, field(message, "card"))),
     ready: (client: Client) => this.handle(client, (seat) => this.onReady(seat)),
+    // Tables privées, réservé à l'hôte, avant le début de la partie.
+    setPlayerCount: (client: Client, message: unknown) =>
+      this.handle(client, (seat) => this.onSetPlayerCount(seat, field(message, "playerCount"))),
+    start: (client: Client) => this.handle(client, (seat) => this.onStart(seat)),
   };
 
-  onCreate(options: TarotRoomOptions = {}) {
+  async onCreate(options: TarotRoomOptions = {}) {
     const playerCount = options.playerCount ?? DEFAULT_PLAYER_COUNT;
     if (!isPlayerCount(playerCount)) {
       throw new Error(`Nombre de joueurs invalide : ${String(playerCount)} (attendu : 3, 4 ou 5)`);
     }
     this.maxClients = playerCount;
     this.state.playerCount = playerCount;
+
+    if (options.privateTable === true) {
+      // Le code est l'identifiant de la room : on le rejoint avec `joinById(code)`.
+      this.roomId = await this.uniquePrivateCode();
+      await this.setPrivate(true);
+      this.state.isPrivate = true;
+      this.state.code = this.roomId;
+    }
   }
 
   /**
@@ -210,6 +238,11 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     view.add(player);
     client.view = view;
 
+    if (this.state.isPrivate) {
+      // Le créateur de la table privée (premier arrivé) en est l'hôte ; il lance la partie.
+      if (this.state.hostSeat === -1) this.state.hostSeat = seat;
+      return;
+    }
     if (this.state.players.size === this.state.playerCount) {
       void this.lock();
       this.startDeal(Math.floor(this.rng() * this.state.playerCount));
@@ -238,6 +271,11 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
       this.state.players.delete(client.sessionId);
       this.userIdBySession.delete(client.sessionId);
       void this.unlock();
+      // L'hôte part avant le début : le joueur restant au plus petit siège devient l'hôte.
+      if (this.state.isPrivate && player.seat === this.state.hostSeat) {
+        const seats = [...this.state.players.values()].map((p) => p.seat);
+        this.state.hostSeat = seats.length > 0 ? Math.min(...seats) : -1;
+      }
     } else {
       // Partie en cours : le siège reste occupé (abandon et remplacement : B17).
       player.connected = false;
@@ -364,6 +402,61 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     this.state.currentSeat = play.currentSeat ?? -1;
 
     if (isPlayFinished(play)) this.finishDeal(ctx);
+  }
+
+  /** Table privée : l'hôte choisit 3, 4 ou 5 joueurs tant que la partie n'a pas commencé. */
+  private onSetPlayerCount(seat: number, raw: unknown) {
+    this.expectHostBeforeStart(seat);
+    if (!isPlayerCount(raw)) {
+      throw new IllegalActionError(
+        "invalidPlayerCount",
+        `Nombre de joueurs invalide : ${String(raw)} (attendu : 3, 4 ou 5)`,
+      );
+    }
+    const players = [...this.state.players.values()].sort((a, b) => a.seat - b.seat);
+    if (players.length > raw) {
+      throw new IllegalActionError(
+        "tooManyPlayers",
+        `${players.length} joueurs sont déjà assis : impossible de passer à ${raw}`,
+      );
+    }
+    // Aucune carte distribuée : on peut renuméroter les sièges sans trou (0, 1, 2…),
+    // pour qu'ils restent tous valides avec la nouvelle taille. L'hôte suit son siège.
+    const hostSessionId = players.find((p) => p.seat === this.state.hostSeat)?.sessionId;
+    players.forEach((player, index) => {
+      player.seat = index;
+      if (player.sessionId === hostSessionId) this.state.hostSeat = index;
+    });
+
+    this.state.playerCount = raw;
+    this.maxClients = raw;
+    // Une table pleine est verrouillée par Colyseus : on la rouvre s'il reste des places.
+    if (players.length < raw) void this.unlock();
+  }
+
+  /** Table privée : l'hôte lance la partie, une fois tous les sièges occupés. */
+  private onStart(seat: number) {
+    this.expectHostBeforeStart(seat);
+    if (this.state.players.size < this.state.playerCount) {
+      throw new IllegalActionError(
+        "tableNotFull",
+        `La table attend encore ${this.state.playerCount - this.state.players.size} joueur(s)`,
+      );
+    }
+    void this.lock();
+    this.startDeal(Math.floor(this.rng() * this.state.playerCount));
+  }
+
+  private expectHostBeforeStart(seat: number) {
+    if (!this.state.isPrivate) {
+      throw new IllegalActionError("notPrivate", "Réservé aux tables privées");
+    }
+    if (this.phase !== "waiting") {
+      throw new IllegalActionError("wrongPhase", "La partie a déjà commencé");
+    }
+    if (seat !== this.state.hostSeat) {
+      throw new IllegalActionError("notHost", "Seul l'hôte de la table peut faire cela");
+    }
   }
 
   private onReady(seat: number) {
@@ -526,6 +619,18 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
 
   private nextDealer(): number {
     return (this.state.dealer + 1) % this.playerCount;
+  }
+
+  /** Code aléatoire (crypto), unique parmi les tables ouvertes. */
+  private async uniquePrivateCode(): Promise<string> {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      let code = "";
+      for (let i = 0; i < PRIVATE_CODE_LENGTH; i++) {
+        code += PRIVATE_CODE_ALPHABET[Math.floor(this.rng() * PRIVATE_CODE_ALPHABET.length)];
+      }
+      if ((await matchMaker.query({ roomId: code })).length === 0) return code;
+    }
+    throw new Error("Impossible de générer un code de table privée unique");
   }
 
   /** Plus petit siège libre. */

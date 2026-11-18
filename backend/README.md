@@ -122,6 +122,28 @@ const room = await client.joinOrCreate("tarot", { playerCount: 4 }); // 3, 4 or 
 - Matchmaking options must be a JSON object; anything else (string, number, `null`, array) is
   refused with `MATCHMAKE_INVALID_CRITERIA`, so the size filter can never be bypassed.
 
+## Private tables
+
+```ts
+// The host creates the table and shares its code.
+const room = await client.create("tarot", { privateTable: true, playerCount: 4 });
+const code = room.state.code; // e.g. "K7Q2MX" (also room.roomId)
+
+// Friends join with the code.
+const room = await client.joinById(code);
+```
+
+- The code is the room id: 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no 0/O, 1/I/L),
+  random (crypto) and unique among open tables. Codes are case-sensitive (upper case).
+- A private table never shows up in free-game matchmaking.
+- The creator is the host (`state.hostSeat`). Before the game starts, the host can:
+  - `send("setPlayerCount", { playerCount: 3 | 4 | 5 })` (not below the number of seated players;
+    seats are renumbered without gaps);
+  - `send("start")` once every seat is taken. A full private table does not start by itself.
+- If the host leaves before the start, the player at the lowest seat becomes the host.
+- Refusals (message `error`): `notPrivate`, `notHost`, `wrongPhase`, `tableNotFull`,
+  `invalidPlayerCount`, `tooManyPlayers`.
+
 ## What's included
 
 ### Reconnection

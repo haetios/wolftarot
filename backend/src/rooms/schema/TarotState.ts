@@ -76,6 +76,12 @@ export type Phase = "waiting" | "bidding" | "calling" | "discarding" | "playing"
 export const TarotState = schema({
   phase: t.string().default("waiting"),
   playerCount: t.uint8().default(4),
+  /** Table privée : absente du matchmaking, rejointe par son code. */
+  isPrivate: t.boolean().default(false),
+  /** Code de la table privée (c'est l'identifiant de la room : `joinById(code)`) ; vide sinon. */
+  code: t.string().default(""),
+  /** Table privée : siège de l'hôte (qui choisit la taille et lance la partie) ; −1 sinon. */
+  hostSeat: t.int8().default(-1),
   /** Numéro de la donne (1 pour la première). */
   dealNumber: t.uint16().default(0),
   /** Siège du donneur, −1 avant la première donne. */
