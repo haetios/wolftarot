@@ -28,3 +28,17 @@ Voir la règle complète dans [../CLAUDE.md](../CLAUDE.md). En bref :
 - PWA : installable, service worker.
 - Le serveur est la source de vérité : l'UI affiche l'état Colyseus et envoie des intentions.
 - Communication avec l'humain en français.
+
+## Contrat avec le backend (à lire avant F8 et suivants)
+
+- Référence : [`../backend/README.md`](../backend/README.md) (options de table, messages, codes d'erreur,
+  reconnexion) et [`../backend/CLAUDE.md`](../backend/CLAUDE.md) (« TarotRoom en bref »).
+- Règles partagées à réutiliser telles quelles : `../backend/src/profiles/username.ts` (pseudo,
+  `SIGNUP_USERNAME_ERRORS`) et `../backend/src/profiles/hand-order.ts` (ordre de la main).
+- Inscription (F4) : `supabase.auth.signUp({ email, password, options: { data: { username } } })` ;
+  vérification en direct `supabase.rpc("username_available", { candidate })` ; un refus du hook
+  (`username_invalid` / `username_unavailable`) s'affiche « pseudo non disponible ».
+- Tables privées (F10) : code en majuscules (`joinById(code)`), choix de la place (`chooseSeat`).
+- Reconnexion (F22) : garder `room.reconnectionToken` (par exemple en `sessionStorage`) et appeler
+  `client.reconnect(token)` après un rechargement ; afficher `kicked` et `SEAT_LOST`.
+- État d'avancement : F0 fait (squelette Nuxt UI, TypeScript 6 à cause de `typescript-eslint`).

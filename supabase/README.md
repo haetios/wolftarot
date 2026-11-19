@@ -69,8 +69,8 @@ du hook, droits) sur une base neuve, dans un conteneur jetable :
 ```sh
 docker run -d --name wolftarot-sql -e POSTGRES_PASSWORD=postgres public.ecr.aws/supabase/postgres:17.11.0.004
 # attendre que la base soit prête (pg_isready), puis :
-for f in migrations/*.sql; do docker exec -i wolftarot-sql psql -v ON_ERROR_STOP=1 -U postgres -h localhost < "$f"; done
-docker exec -i wolftarot-sql psql -U supabase_admin -h localhost < tests/check_signup.sql   # « OK 1 » à « OK 5 »
+for f in migrations/*.sql; do docker exec -i wolftarot-sql psql -v ON_ERROR_STOP=1 -U postgres -h localhost -d postgres < "$f"; done
+docker exec -i wolftarot-sql psql -U supabase_admin -h localhost -d postgres < tests/check_signup.sql   # « OK 1 » à « OK 5 »
 docker rm -f wolftarot-sql
 ```
 

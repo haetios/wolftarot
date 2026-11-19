@@ -146,7 +146,7 @@ Référence : [spec.md](spec.md)
 - [x] Tests
 - [x] **Sprint validé par l'agent**
 
-> ⏸️ **Pause humaine** : s'arrêter après B17 et faire le bilan à l'humain.
+> ✅ **Pause humaine après B17 : faite le 19/11/2026** (bilan rendu ; retours traités en B17.1 à B17.5).
 
 ### Retours de la pause B17 (décisions de l'humain du 19/11/2026)
 
@@ -179,9 +179,9 @@ Référence : [spec.md](spec.md)
 - [x] **Sprint validé par l'agent**
 
 #### Sprint B17.5 — Mémoire du projet dans les CLAUDE.md
-- [ ] Carte du code (dossiers, modules, fonctions clés, aides de test) dans `backend/CLAUDE.md`
-- [ ] Décisions de l'humain, état d'avancement et pièges connus (Colyseus, pnpm, Supabase) dans les CLAUDE.md
-- [ ] **Sprint validé par l'agent**
+- [x] Carte du code (dossiers, modules, fonctions clés, aides de test) dans `backend/CLAUDE.md`
+- [x] Décisions de l'humain, état d'avancement et pièges connus (Colyseus, pnpm, Supabase) dans les CLAUDE.md
+- [x] **Sprint validé par l'agent**
 
 > Pas de pénalité d'abandon tant qu'il n'existe pas de score hors des tables (classement, statistiques) : un abandon est remplacé par un bot. À revoir si un classement apparaît.
 
@@ -205,6 +205,7 @@ Référence : [spec.md](spec.md)
 - [ ] Mémoire des cartes jouées (coupes, atouts restants)
 - [ ] Le bot adapte son jeu à ces informations
 - [ ] Le bot ne garde pas l'Excuse pour le dernier pli (sauf chelem)
+- [ ] Le bot n'annonce pas le chelem si les annonces secondaires sont désactivées
 - [ ] Tests ciblés par scénario
 - [ ] **Sprint validé par l'agent**
 
@@ -288,6 +289,7 @@ Référence : [spec.md](spec.md)
 - [ ] Choix du rôle (attaque, devant, au milieu, au fond) : le joueur reçoit la main de ce rôle, les autres sièges sont des bots
 - [ ] Rejouer la même donne à la même position ou à une autre, via son ID
 - [ ] Interdit en partie libre (la position y est imposée)
+- [ ] Option « annonces secondaires » reprise à la création de la room d'entraînement
 - [ ] Tests : une donne se joue jusqu'au bout avec chaque rôle
 - [ ] **Sprint validé par l'agent**
 

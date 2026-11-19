@@ -43,3 +43,52 @@ Le moteur de règles du Tarot est une logique pure, testable sans réseau. Le se
 - Gestionnaire de paquets : **pnpm** (`/home/dev/.local/share/pnpm/bin/pnpm`).
 - Noms de code en anglais ; la traduction se fait dans l'interface.
 - Règles du jeu : **règlement FFT** (`https://fftarot.fr/assets/documents/ReglementFFT_DonnesLibres.pdf`).
+
+## État d'avancement (tenu à jour à chaque sprint)
+
+- **Fait** : B0 à B17.5 (moteur de règles complet, room Colyseus jouable de bout en bout, auth Supabase,
+  profils, parties libres, tables privées, reconnexion et délais, options de table, cette mémoire) ;
+  F0 (squelette Nuxt).
+- **Pause humaine après B17** : faite le 19/11/2026 (retours traités en B17.1 à B17.5).
+- **Suivant** : ⏸️ **pause humaine après B17.5** (bilan à l'humain), puis B18 (bots).
+  Prochaine pause : après B23. Les pauses sont décidées par l'humain et marquées ⏸️ dans `plan.md` :
+  toujours les relire avant d'enchaîner un sprint.
+- Historique : `git log --oneline` (un commit par sprint, message = nom du sprint).
+
+## Décisions de l'humain (journal)
+
+À respecter sans les rediscuter ; une nouvelle décision s'ajoute ici avec sa date.
+
+- **Règles** : règlement FFT, sans règle maison. Noms de code en anglais (`dog` = chien,
+  `handful` = poignée, `slam` = chelem, `small/guard/guardWithout/guardAgainst` = contrats).
+- **Signalisation** de la défense (spec.md) : à coder en B20 à B23.
+- **Petit sec** : la donne est annulée et redistribuée.
+- **Entraînement** : donnes préfaites (20 par jour, validées par un admin), rejouables par ID, pourcentage
+  comme sur Foxtarot (B24 à B30).
+- **19/11/2026 (pause B17)** :
+  - `SUPABASE_PUBLISHABLE_KEY` obligatoire ; pseudo lu uniquement dans `profiles` ; Supabase injoignable →
+    connexion refusée ; comptes anonymes refusés ;
+  - inscription refusée si le pseudo est pris ou invalide (« pseudo non disponible ») ; vérification en
+    direct `username_available` conservée ;
+  - délais : reconnexion 60 s, décision 60 s, fin de donne 60 s puis éjection (remplacé par un bot) ;
+  - **pas de pénalité d'abandon** tant qu'il n'existe pas de score hors des tables (un bot remplace) ;
+  - noms des bots aléatoires, tirés à la création d'une table qui accepte les bots ;
+  - un bot ne prend qu'avec un vrai jeu d'attaque (au minimum une Prise), sinon il passe ;
+  - tables privées : chaque joueur choisit sa place ; 5 codes erronés par minute et par compte ;
+  - option « annonces secondaires » (chelem, petit au bout) à la création de toute table ;
+  - `loadtest` supprimé ; `.env.development` / `.env.production` supprimés ;
+  - pauses humaines après B17.5 et après B23 (ajoutées par l'humain dans `plan.md`).
+
+## Pièges connus (environnement)
+
+- **pnpm** : `export PATH=/home/dev/.local/share/pnpm/bin:$PATH` (le `pnpm` de corepack est cassé).
+  Le registre npm est lent (≈ 2 min par `pnpm add`) : timeouts longs, ajouter une dépendance seulement
+  si c'est indispensable. pnpm 12 bloque les scripts de build non approuvés (`allowBuilds` dans
+  `pnpm-workspace.yaml`) et les dépendances git (`blockExoticSubdeps: false` dans le backend, pour
+  `uWebSockets.js` tiré par `colyseus`).
+- **Docker** : les conteneurs déjà présents appartiennent à d'autres projets (`taleway`, `critiplay`,
+  `harmony`, `unidest`…) : **ne jamais y toucher**. Pour tester le SQL : un conteneur jetable nommé
+  `wolftarot-…` (voir `supabase/README.md`), supprimé ensuite.
+- **Arrêter un serveur lancé pour vérifier** : par son PID (`ss -ltnp`), jamais `pkill -f` (la commande
+  se tue elle-même).
+- **Règlement FFT** : le PDF officiel est lisible avec `pdftotext` (WebFetch ne sait pas le lire).
