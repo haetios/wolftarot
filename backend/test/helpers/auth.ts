@@ -3,6 +3,8 @@ import { SignJWT, type CryptoKey, type JWTPayload, type KeyObject } from "jose";
 import type { ColyseusTestServer } from "@colyseus/testing";
 import type { Room } from "colyseus";
 
+import { testProfiles } from "./profiles.js";
+
 /**
  * Jetons Supabase signés en local pour les tests (aucun appel réseau).
  * Le secret et l'URL sont ceux de `vitest.config.ts`.
@@ -14,8 +16,13 @@ export const TEST_SECRET = new TextEncoder().encode(process.env.SUPABASE_JWT_SEC
 
 export type TestTokenOptions = {
   sub?: string;
-  /** Pseudo placé dans `user_metadata.username` ; absent si `undefined`. */
+  /**
+   * Pseudo du joueur : enregistré dans le profil de test (`testProfiles`) et placé dans
+   * `user_metadata.username`. Par défaut, un pseudo dérivé du `sub`.
+   */
   username?: string;
+  /** N'enregistre aucun profil (compte supprimé, par exemple). */
+  withoutProfile?: boolean;
   /** Autres revendications, qui remplacent celles par défaut. */
   claims?: JWTPayload;
   /** Durée de validité en secondes (négative : jeton déjà expiré). 1 h par défaut. */
@@ -29,8 +36,12 @@ export type TestTokenOptions = {
 /** Jeton d'accès au format Supabase (audience `authenticated`, émetteur du projet de test). */
 export async function signTestToken(options: TestTokenOptions = {}): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
+  const sub = options.sub ?? randomUUID();
+  if (!options.withoutProfile) {
+    testProfiles.withProfile(sub, options.username ?? defaultUsername(sub));
+  }
   const payload: JWTPayload = {
-    sub: options.sub ?? randomUUID(),
+    sub,
     aud: "authenticated",
     iss: TEST_ISSUER,
     role: "authenticated",
@@ -45,6 +56,11 @@ export async function signTestToken(options: TestTokenOptions = {}): Promise<str
   return new SignJWT(payload)
     .setProtectedHeader({ alg, typ: "JWT", ...(options.kid ? { kid: options.kid } : {}) })
     .sign(options.key ?? TEST_SECRET);
+}
+
+/** Pseudo par défaut d'un utilisateur de test (valide selon les règles du pseudo). */
+export function defaultUsername(sub: string): string {
+  return `Player_${sub.replace(/-/g, "").slice(0, 8)}`;
 }
 
 /** Connecte un client à une room avec ce jeton (transmis en `Authorization: Bearer`). */

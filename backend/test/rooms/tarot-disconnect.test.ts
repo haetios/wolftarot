@@ -4,7 +4,12 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import { matchMaker } from "colyseus";
 
 import appConfig from "../../src/app.config.js";
-import { DEFAULT_TIMING, TarotRoom, type TarotTiming } from "../../src/rooms/TarotRoom.js";
+import {
+  DEFAULT_TIMING,
+  SEAT_LOST,
+  TarotRoom,
+  type TarotTiming,
+} from "../../src/rooms/TarotRoom.js";
 import { connectAs } from "../helpers/auth.js";
 
 type SdkRoom = SdkRoomOf<TarotRoom>;
@@ -180,6 +185,84 @@ describe("TarotRoom : déconnexion, reconnexion, délais et abandon", () => {
       await waitFor(() => playerOf(room, other).abandoned);
       expect(room.state.currentSeat).toBe(seat);
       expect(room.state.turnDeadline).toBe(deadline);
+    });
+  });
+
+  describe("fin de donne : 60 s pour se déclarer prêt, sinon éjection", () => {
+    it("délais par défaut : reconnexion 60 s, décision 60 s, fin de donne 60 s", () => {
+      expect(DEFAULT_TIMING).toMatchObject({
+        reconnectionSeconds: 60,
+        turnSeconds: 60,
+        scoringSeconds: 60,
+      });
+    });
+
+    it("un joueur pas prêt à temps est éjecté (message kicked) et la donne suivante démarre", async () => {
+      useTiming({ turnSeconds: 0.01, scoringSeconds: 0.3 });
+      const { room, clients } = await fullTable();
+      const seat = room.state.currentSeat;
+      const taker = clients.find((c) => playerOf(room, c).seat === seat)!;
+      taker.send("bid", { bid: "guardWithout" });
+      await room.waitForMessage("bid");
+      await waitFor(() => room.state.phase === "scoring", 10_000);
+
+      const [late, alsoLate] = clients.filter((c) => c !== taker);
+      late!.reconnection.enabled = false;
+      alsoLate!.reconnection.enabled = false;
+      const kicked = late!.waitForMessage("kicked");
+      taker.send("ready");
+      await room.waitForMessage("ready");
+
+      expect(await kicked).toEqual({ reason: "notReady" });
+      await waitFor(() => room.state.dealNumber === 2);
+      expect(room.state.phase).toBe("bidding");
+      expect(playerOf(room, late!)).toMatchObject({ abandoned: true, connected: false });
+      expect(playerOf(room, alsoLate!)).toMatchObject({ abandoned: true, connected: false });
+      expect(playerOf(room, taker)).toMatchObject({ abandoned: false, connected: true });
+
+      // Éjecté : il ne peut pas reprendre son siège.
+      await expect(colyseus.sdk.reconnect(late!.reconnectionToken)).rejects.toThrow();
+    });
+
+    it("un joueur coupé pendant la fin de donne et éjecté ne peut pas revenir", async () => {
+      useTiming({ turnSeconds: 0.01, scoringSeconds: 0.5, reconnectionSeconds: 10 });
+      const { room, clients } = await fullTable();
+      const seat = room.state.currentSeat;
+      const taker = clients.find((c) => playerOf(room, c).seat === seat)!;
+      taker.send("bid", { bid: "guardWithout" });
+      await room.waitForMessage("bid");
+      await waitFor(() => room.state.phase === "scoring", 10_000);
+
+      const [dropped, other] = clients.filter((c) => c !== taker);
+      for (const c of [taker, other!]) {
+        c.send("ready");
+        await room.waitForMessage("ready");
+      }
+      // Coupure pendant la fin de donne : la reconnexion (10 s) dure plus que l'échéance (0,5 s).
+      const player = playerOf(room, dropped!);
+      const token = await drop(dropped!);
+      await waitFor(() => !player.connected);
+      await waitFor(() => room.state.dealNumber === 2);
+      expect(player.abandoned).toBe(true);
+
+      await expect(colyseus.sdk.reconnect(token)).rejects.toMatchObject({ code: SEAT_LOST });
+      expect(player).toMatchObject({ abandoned: true, connected: false });
+      expect(room.clients.some((c) => c.sessionId === dropped!.sessionId)).toBe(false);
+    });
+
+    it("tant que le délai n'est pas écoulé, personne n'est éjecté", async () => {
+      useTiming({ turnSeconds: 0.01, scoringSeconds: 60 });
+      const { room, clients } = await fullTable();
+      const seat = room.state.currentSeat;
+      const taker = clients.find((c) => playerOf(room, c).seat === seat)!;
+      taker.send("bid", { bid: "guardWithout" });
+      await room.waitForMessage("bid");
+      await waitFor(() => room.state.phase === "scoring", 10_000);
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(room.state.phase).toBe("scoring");
+      for (const player of room.state.players.values()) expect(player.abandoned).toBe(false);
+      expect(room.state.turnDeadline).toBeGreaterThan(Date.now() + 55_000);
     });
   });
 

@@ -41,14 +41,14 @@ describe("TarotRoom", () => {
   describe("rejoindre et quitter", () => {
     it("chaque joueur reçoit le plus petit siège libre et son pseudo", async () => {
       const room = await createRoom(3);
-      // Le pseudo vient du jeton (`user_metadata.username`) ; sans pseudo, valeur de repli.
+      // Le pseudo vient du profil du joueur (table `profiles`, dépôt en mémoire dans les tests).
       const a = await join(room, "  Alice  ");
-      const b = await join(room);
+      const b = await join(room, "Bob");
 
       const alice = room.state.players.get(a.sessionId)!;
       const other = room.state.players.get(b.sessionId)!;
       expect(alice).toMatchObject({ seat: 0, name: "Alice", connected: true });
-      expect(other).toMatchObject({ seat: 1, name: "Joueur 2" });
+      expect(other).toMatchObject({ seat: 1, name: "Bob" });
       expect(room.state.phase).toBe("waiting");
     });
 

@@ -41,6 +41,8 @@ export type AuthFailureReason =
   | "notConfigured"
   /** Jeton valide, mais aucun profil (compte supprimé, par exemple) : voir `identity.ts`. */
   | "profileNotFound"
+  /** Profil illisible (Supabase injoignable, trop lent ou réponse invalide) : réessayer plus tard. */
+  | "profileUnavailable"
   /** Échec inattendu (JWKS injoignable, par exemple). */
   | "verificationFailed";
 

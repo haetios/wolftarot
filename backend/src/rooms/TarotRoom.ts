@@ -1,12 +1,12 @@
 import { StateView } from "@colyseus/schema";
 import {
+  CloseCode,
   ErrorCode,
   matchMaker,
   Room,
   ServerError,
   type AuthContext,
   type Client,
-  type CloseCode,
   type Delayed,
 } from "colyseus";
 
@@ -90,6 +90,9 @@ export const DEFAULT_PLAYER_COUNT = 4;
  */
 export const ALREADY_SEATED = 4090;
 
+/** Le joueur a été retiré de la table (éjecté, ou siège abandonné) : il ne peut pas y revenir. */
+export const SEAT_LOST = 4091;
+
 /**
  * Normalise les options de matchmaking envoyées par le client (non fiables), **en place** :
  * Colyseus filtre les tables sur `playerCount` (`filterBy` dans `app.config.ts`), et une option
@@ -134,18 +137,32 @@ export type TarotTiming = {
   reconnectionSeconds: number;
   /** Temps laissé à un joueur pour chaque décision (enchère, appel, écart, carte). */
   turnSeconds: number;
-  /** Temps laissé en fin de donne pour se déclarer prêt. */
+  /**
+   * Temps laissé en fin de donne pour se déclarer prêt. Passé ce délai, un joueur qui n'est pas
+   * prêt est éjecté de la table (message `kicked`) et compté comme ayant abandonné : son siège
+   * est joué automatiquement (puis par un bot, B18).
+   */
   scoringSeconds: number;
   /** Délai avant de jouer à la place d'un joueur qui a abandonné (laisse voir le coup). */
   abandonedActionMs: number;
 };
 
 export const DEFAULT_TIMING: Readonly<TarotTiming> = {
-  reconnectionSeconds: 30,
+  reconnectionSeconds: 60,
   turnSeconds: 60,
-  scoringSeconds: 30,
+  scoringSeconds: 60,
   abandonedActionMs: 800,
 };
+
+/** Message envoyé au joueur éjecté juste avant la fermeture de sa connexion. */
+export type KickedMessage = { reason: "notReady" };
+
+/**
+ * Source des donnes. Par défaut : distribution aléatoire (`dealCards`). Remplaçable par les
+ * tests (donne construite à la main) et, plus tard, par les donnes préfaites de l'entraînement.
+ */
+export type DealSource = (playerCount: PlayerCount, rng: Rng) => Deal;
+export const randomDeals: DealSource = (playerCount, rng) => dealCards(playerCount, rng);
 
 const BIDS: readonly Bid[] = ["pass", ...CONTRACTS];
 
@@ -180,6 +197,9 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
 
   /** Délais utilisés par les tables créées ensuite (modifiables par les tests). */
   static timing: TarotTiming = { ...DEFAULT_TIMING };
+  /** Source des donnes des tables créées ensuite (remplacée par les tests). */
+  static dealSource: DealSource = randomDeals;
+  private readonly dealSource: DealSource = TarotRoom.dealSource;
   private readonly timing: TarotTiming = { ...TarotRoom.timing };
 
   /** Messages des clients. Toute action refusée par les règles renvoie un message `error`. */
@@ -262,9 +282,8 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     const player = new PlayerState();
     player.sessionId = client.sessionId;
     player.seat = seat;
-    // Pseudo de repli si le profil est illisible (Supabase injoignable) ou, sans profils
-    // configurés, si `user_metadata` n'en donne pas (voir `resolvePlayerIdentity`).
-    player.name = identity.name ?? `Joueur ${seat + 1}`;
+    // Pseudo lu dans la table `profiles` (voir `resolvePlayerIdentity`).
+    player.name = identity.name;
     this.state.players.set(client.sessionId, player);
 
     // Le joueur voit les champs privés (`.view()`) de son propre état, et de personne d'autre.
@@ -287,6 +306,8 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
   onDrop(client: Client, _code: CloseCode) {
     const player = this.state.players.get(client.sessionId);
     if (player) player.connected = false;
+    // Un joueur éjecté ou qui a abandonné ne récupère pas son siège.
+    if (player?.abandoned) return;
     // Non attendu : le framework appelle ensuite onReconnect() ou onLeave().
     // Le catch évite une promesse rejetée non gérée quand la room se ferme.
     // Si le délai expire, Colyseus appelle onLeave() : le joueur est alors considéré comme
@@ -297,6 +318,11 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
 
   onReconnect(client: Client) {
     const player = this.state.players.get(client.sessionId);
+    if (player?.abandoned) {
+      // Éjecté pendant sa coupure (fin de donne écoulée) : la reconnexion ouverte au moment de la
+      // coupure ne lui rend pas son siège. Colyseus refuse alors la reconnexion avec cette erreur.
+      throw new ServerError(SEAT_LOST, "Vous avez été retiré de cette table");
+    }
     if (player) player.connected = true;
   }
 
@@ -528,12 +554,12 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
   /** Distribue une nouvelle donne. Petit sec : la donne est annulée et le joueur suivant redonne. */
   private startDeal(dealer: number) {
     const playerCount = this.playerCount;
-    let deal = dealCards(playerCount, this.rng);
+    let deal = this.dealSource(playerCount, this.rng);
     let petitSec = seatsWithPetitSec(deal);
     while (petitSec.length > 0) {
       this.broadcast("redeal", { reason: "petitSec", seats: petitSec });
       dealer = (dealer + 1) % playerCount;
-      deal = dealCards(playerCount, this.rng);
+      deal = this.dealSource(playerCount, this.rng);
       petitSec = seatsWithPetitSec(deal);
     }
 
@@ -689,7 +715,9 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
         for (const player of waiting) {
           // Le dernier « prêt » lance la donne suivante : on s'arrête là.
           if (this.phase !== "scoring") break;
-          if (!player.ready) this.onReady(player.seat);
+          if (player.ready) continue;
+          if (!player.abandoned) this.ejectNotReady(player);
+          this.onReady(player.seat);
         }
       };
     } else {
@@ -720,6 +748,19 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
       this.actionCount++;
       this.scheduleDeadline();
     }, delay);
+  }
+
+  /**
+   * Fin de donne : le joueur ne s'est pas déclaré prêt à temps. Il est éjecté (fermeture
+   * « consentie » : pas de reconnexion automatique) et son siège compte comme abandonné.
+   */
+  private ejectNotReady(player: PlayerState) {
+    player.abandoned = true;
+    player.connected = false;
+    const client = this.clients.find((c) => c.sessionId === player.sessionId);
+    if (!client) return;
+    client.send("kicked", { reason: "notReady" } satisfies KickedMessage);
+    client.leave(CloseCode.CONSENTED);
   }
 
   /** Coup par défaut, sûr et légal, joué à la place du siège qui devait agir. */

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { cleanName, nameFromClaims, resolvePlayerIdentity } from "../../src/auth/identity.js";
+import { cleanName, resolvePlayerIdentity } from "../../src/auth/identity.js";
 import { AuthError, type SupabaseClaims } from "../../src/auth/verify-token.js";
 import { InMemoryProfileRepository } from "../helpers/profiles.js";
 
@@ -40,61 +40,34 @@ describe("identité du joueur : pseudo lu dans profiles (B14)", () => {
     await expect(result).rejects.toMatchObject({ reason: "profileNotFound" });
   });
 
-  it("Supabase injoignable : connexion acceptée, pseudo null (jamais user_metadata)", async () => {
+  it("Supabase injoignable : connexion refusée (profileUnavailable), jamais user_metadata", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const profiles = new InMemoryProfileRepository().withProfile("user-1", "Alice");
     profiles.unavailable = true;
-    const identity = await resolvePlayerIdentity(claims({ username: "Usurpateur" }), {
+    const result = resolvePlayerIdentity(claims({ username: "Usurpateur" }), {
       accessToken: TOKEN,
       profiles,
     });
-    expect(identity).toEqual({ id: "user-1", name: null });
+    await expect(result).rejects.toBeInstanceOf(AuthError);
+    await expect(result).rejects.toMatchObject({ reason: "profileUnavailable" });
     expect(warn).toHaveBeenCalledOnce();
     // Le jeton n'apparaît jamais dans les journaux.
     expect(String(warn.mock.calls[0]![0])).not.toContain(TOKEN);
   });
 
-  it("erreur inattendue du dépôt : traitée comme une panne", async () => {
+  it("erreur inattendue du dépôt : traitée comme une panne (connexion refusée)", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const profiles = new InMemoryProfileRepository();
     profiles.findProfile = async () => {
       throw new Error("bug");
     };
-    expect(await resolvePlayerIdentity(claims(), { accessToken: TOKEN, profiles })).toEqual({
-      id: "user-1",
-      name: null,
-    });
+    await expect(
+      resolvePlayerIdentity(claims(), { accessToken: TOKEN, profiles }),
+    ).rejects.toMatchObject({ reason: "profileUnavailable" });
   });
 });
 
-describe("identité du joueur : profils non configurés (repli de développement, B13)", () => {
-  const noProfiles = { accessToken: TOKEN, profiles: null };
-
-  it("id = sub du jeton, pseudo = user_metadata.username", async () => {
-    expect(await resolvePlayerIdentity(claims({ username: "Alice" }), noProfiles)).toEqual({
-      id: "user-1",
-      name: "Alice",
-    });
-  });
-
-  it("sans pseudo : null (la room choisit un pseudo de repli)", async () => {
-    expect(await resolvePlayerIdentity(claims(), noProfiles)).toEqual({ id: "user-1", name: null });
-    expect(nameFromClaims(claims({}))).toBeNull();
-    expect(nameFromClaims(claims({ username: "   " }))).toBeNull();
-    expect(nameFromClaims(claims({ username: 42 }))).toBeNull();
-  });
-
-  it("à défaut de username : pseudo OAuth (user_name, preferred_username)", () => {
-    expect(nameFromClaims(claims({ user_name: "gh-bob" }))).toBe("gh-bob");
-    expect(nameFromClaims(claims({ preferred_username: "carol" }))).toBe("carol");
-    expect(nameFromClaims(claims({ username: "Alice", user_name: "gh-alice" }))).toBe("Alice");
-  });
-
-  it("n'affiche jamais le nom réel (name, full_name) ni l'e-mail", () => {
-    const meta = { name: "Alice Martin", full_name: "Alice Martin", email: "alice@example.test" };
-    expect(nameFromClaims(claims(meta))).toBeNull();
-  });
-
+describe("nettoyage du pseudo", () => {
   it("nettoie le pseudo", () => {
     expect(cleanName("  Alice  ")).toBe("Alice");
     expect(cleanName("A\u0000lice\u007f")).toBe("Alice");

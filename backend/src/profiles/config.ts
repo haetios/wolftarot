@@ -10,8 +10,8 @@ import type { ProfileRepository } from "./repository.js";
  * - `SUPABASE_PUBLISHABLE_KEY` : clé **publique** du projet (`sb_publishable_…`, ou l'ancienne
  *   clé `anon`). Non secrète : c'est celle du frontend.
  *
- * Sans clé, aucun dépôt n'est construit (`null`) : le pseudo vient alors de `user_metadata`,
- * comme en B13 (mode de développement, voir `resolvePlayerIdentity`).
+ * Les deux variables sont **obligatoires** (décision de l'humain, 19/11/2026) : les pseudos
+ * viennent uniquement de la table `profiles`, sans repli sur `user_metadata`.
  *
  * Moindre privilège : une clé secrète (`sb_secret_…`, ou ancienne clé JWT de rôle
  * `service_role`) est refusée au démarrage. Elle contournerait la RLS, alors que le jeton du
@@ -23,10 +23,12 @@ export type ProfilesEnv = {
   SUPABASE_PUBLISHABLE_KEY?: string | undefined;
 };
 
-/** Dépôt de profils d'après l'environnement, ou `null` ; lève une erreur explicite si invalide. */
-export function profileRepositoryFromEnv(env: ProfilesEnv = process.env): ProfileRepository | null {
+/** Dépôt de profils d'après l'environnement ; lève une erreur explicite si absent ou invalide. */
+export function profileRepositoryFromEnv(env: ProfilesEnv = process.env): ProfileRepository {
   const key = env.SUPABASE_PUBLISHABLE_KEY?.trim() ?? "";
-  if (key.length === 0) return null;
+  if (key.length === 0) {
+    throw new Error("SUPABASE_PUBLISHABLE_KEY est obligatoire (clé publique du projet Supabase)");
+  }
 
   const url = env.SUPABASE_URL?.trim() ?? "";
   if (url.length === 0) {

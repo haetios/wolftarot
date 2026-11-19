@@ -15,6 +15,10 @@ export default defineConfig({
     env: {
       SUPABASE_URL: "http://127.0.0.1:9",
       SUPABASE_JWT_SECRET: "test-only-secret-not-used-anywhere-else-0123456789",
+      // Clé publique factice (obligatoire au démarrage) : les profils viennent du dépôt en mémoire
+      // branché par `test/setup.ts`, jamais d'un vrai Supabase.
+      SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test-only-not-a-real-key",
     },
+    setupFiles: ["test/setup.ts"],
   },
 });

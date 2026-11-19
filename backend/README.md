@@ -25,7 +25,6 @@ Then open http://localhost:2567 for the playground, or /monitor for the monitor.
 - `src/rooms/schema/TarotState.ts`: the state synchronized to clients (a hand is only sent to its owner)
 - `test/engine/`: rules engine tests; `test/auth/`: token verification tests; `test/profiles/`: profiles and settings (including a check that the SQL rules match the TypeScript ones); `test/rooms/`: boots the real server and connects real clients
 - `test/helpers/auth.ts`: signs Supabase-like tokens locally for the tests (no network); `test/helpers/profiles.ts`: in-memory `ProfileRepository` (no network)
-- `loadtest/example.ts`: scriptable client for `pnpm loadtest`
 - `ecosystem.config.cjs`: pm2 configuration, used when deploying to Colyseus Cloud
 
 ## Scripts
@@ -36,28 +35,24 @@ Then open http://localhost:2567 for the playground, or /monitor for the monitor.
 - `pnpm lint`: ESLint
 - `pnpm format` / `pnpm format:check`: Prettier
 - `pnpm build`: compile to `build/`
-- `pnpm loadtest`: connect N simulated clients with [`@colyseus/loadtest`](https://github.com/colyseus/colyseus-loadtest/)
 - `GET /health`: returns `{"status":"ok"}`
 
 ## Configuration
 
 Copy [`.env.example`](.env.example) and fill it in, or (preferred for secrets) export the variables
 in the process environment, which takes precedence over files. `@colyseus/tools` loads only the
-**first** file found among `.env.<NODE_ENV>` and `.env`: the committed `.env.development` and
-`.env.production` sample files therefore shadow a local `.env`. Never commit a secret.
+**first** file found among `.env.<NODE_ENV>` and `.env` (none is committed; `.env` is git-ignored).
+Never commit a secret.
 
-| Variable                   | Required       | Description                                                                                                                                                                                                                                           |
-| -------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SUPABASE_URL`             | one of the two | Project URL, e.g. `https://<ref>.supabase.co`. Enables asymmetric keys (ES256/RS256) fetched from `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` (cached, fetched on first use) and the issuer check (`<SUPABASE_URL>/auth/v1`). Not secret.          |
-| `SUPABASE_JWT_SECRET`      | one of the two | Legacy shared HS256 secret, only if the project still signs tokens with it. **Secret**, 32 characters minimum.                                                                                                                                        |
-| `SUPABASE_PUBLISHABLE_KEY` | recommended    | Project **public** key (`sb_publishable_…`, or the legacy `anon` key), the same one the frontend uses. Not secret. Enables reading usernames from the `profiles` table; requires `SUPABASE_URL`. A secret / `service_role` key is refused at startup. |
-| `PORT`                     | no             | Listening port (2567).                                                                                                                                                                                                                                |
+| Variable                   | Required | Description                                                                                                                                                                                                                                  |
+| -------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`             | **yes**  | Project URL, e.g. `https://<ref>.supabase.co`. Enables asymmetric keys (ES256/RS256) fetched from `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` (cached, fetched on first use) and the issuer check (`<SUPABASE_URL>/auth/v1`). Not secret. |
+| `SUPABASE_PUBLISHABLE_KEY` | **yes**  | Project **public** key (`sb_publishable_…`, or the legacy `anon` key), the same one the frontend uses. Not secret. Usernames are read from the `profiles` table only. A secret / `service_role` key is refused at startup.                   |
+| `SUPABASE_JWT_SECRET`      | no       | Legacy shared HS256 secret, only if the project still signs tokens with it. **Secret**, 32 characters minimum.                                                                                                                               |
+| `PORT`                     | no       | Listening port (2567).                                                                                                                                                                                                                       |
 
-Without either Supabase variable the server starts with a warning but refuses every connection.
-Without `SUPABASE_PUBLISHABLE_KEY` the server starts with a warning and takes usernames from
-`user_metadata` (development fallback only: not unique, editable by the user).
-An invalid value (malformed URL, short secret, secret key instead of the public key) stops the
-server at startup.
+A missing `SUPABASE_URL` or `SUPABASE_PUBLISHABLE_KEY`, or an invalid value (malformed URL, short
+secret, secret key instead of the public key), stops the server at startup.
 
 ## Authentication
 
@@ -86,15 +81,14 @@ database trigger), read by `resolvePlayerIdentity()` in `src/auth/identity.ts` t
 public key and **the player's own access token**, so RLS applies exactly as for the player; the
 `service_role` key is never used.
 
-| Situation                                      | Result                                                                                            |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| profile found                                  | its username                                                                                      |
-| no profile (deleted account, still-valid JWT)  | connection refused with `profileNotFound`                                                         |
-| Supabase unreachable, timeout (3 s), bad reply | connection accepted, fallback name `Joueur <seat>`, warning logged                                |
-| `SUPABASE_PUBLISHABLE_KEY` not set (dev)       | name from `user_metadata.username` (then `user_name`, `preferred_username`), else `Joueur <seat>` |
+| Situation                                      | Result                                                                              |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------- |
+| profile found                                  | its username                                                                        |
+| no profile (deleted account, still-valid JWT)  | connection refused with `profileNotFound`                                           |
+| Supabase unreachable, timeout (3 s), bad reply | connection refused (`profileUnavailable`: "service temporarily unavailable, retry") |
 
-`user_metadata` is never used once profiles are configured, not even during an outage: the user
-can change it at any time and it is not unique, so it would allow impersonation.
+`user_metadata` is never used for usernames, not even during an outage: the user can change it at
+any time and it is not unique, so it would allow impersonation.
 
 The player's settings (`settings` table, base order of the cards in hand) can be read with
 `ProfileRepository.findSettings()`; the model and its validation live in
@@ -146,7 +140,7 @@ const room = await client.joinById(code);
 
 ## Disconnection, reconnection, turn time and abandonment
 
-- **Reconnection**: after a network drop, the seat is kept `reconnectionSeconds` (30 s). The SDK
+- **Reconnection**: after a network drop, the seat is kept `reconnectionSeconds` (60 s). The SDK
   retries automatically; the player gets back the same session, identity (`client.auth`), seat
   and hand. To survive a page reload, the frontend should store `room.reconnectionToken` (e.g. in
   `sessionStorage`) and call `client.reconnect(token)`. `state.players[...].connected` is `false`
@@ -155,15 +149,19 @@ const room = await client.joinById(code);
   `Date.now()` in ms, 0 if none) for a countdown. When it expires, the server plays a safe default
   move for the player: pass (bidding), first callable card (king call), a legal discard, the first
   legal card, or "ready" (end of deal).
+- **End of deal**: players have `scoringSeconds` (60 s) to send `ready`. A player who is not ready
+  in time is ejected: the server sends `kicked` (`{ reason: "notReady" }`), closes the connection
+  (no reconnection) and the seat counts as abandoned. A player ejected while offline cannot use
+  their reconnection token either: `reconnect()` is refused with `SEAT_LOST` (code 4091).
 - **Abandonment**: a player who leaves a game in progress (consented `leave()`), or who does not
   come back in time, is marked `abandoned`. Their seat stays and is played automatically after
   `abandonedActionMs`, until bots arrive (B18). They cannot rejoin that table. When every player
   has abandoned, the table is closed.
 - **Timings** (`TarotRoom.timing`, server-side only, never a client option):
 
-  | Setting               | Default | Use                                    |
-  | --------------------- | ------- | -------------------------------------- |
-  | `reconnectionSeconds` | 30      | seat kept after a drop                 |
-  | `turnSeconds`         | 60      | time for each decision                 |
-  | `scoringSeconds`      | 30      | time to say "ready" after a deal       |
-  | `abandonedActionMs`   | 800     | delay before playing an abandoned seat |
+  | Setting               | Default | Use                                             |
+  | --------------------- | ------- | ----------------------------------------------- |
+  | `reconnectionSeconds` | 60      | seat kept after a drop                          |
+  | `turnSeconds`         | 60      | time for each decision                          |
+  | `scoringSeconds`      | 60      | time to say "ready" after a deal, then ejection |
+  | `abandonedActionMs`   | 800     | delay before playing an abandoned seat          |

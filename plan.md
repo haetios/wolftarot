@@ -148,12 +148,53 @@ Référence : [spec.md](spec.md)
 
 > ⏸️ **Pause humaine** : s'arrêter après B17 et faire le bilan à l'humain.
 
+### Retours de la pause B17 (décisions de l'humain du 19/11/2026)
+
+#### Sprint B17.1 — Configuration, délais et nettoyage
+- [x] Supprimer `backend/.env.development` et `backend/.env.production` (ils masquaient un `.env` local)
+- [x] `SUPABASE_PUBLISHABLE_KEY` obligatoire : plus de repli sur le pseudo du jeton
+- [x] Supabase injoignable à la connexion : connexion refusée (« service momentanément indisponible »)
+- [x] Délais : reconnexion 60 s ; fin de donne : 60 s pour se déclarer prêt, sinon le joueur est éjecté de la table (remplacé par un bot en B18)
+- [x] Supprimer `loadtest` (script, dossier, dépendance)
+- [x] Test d'intégration de la poignée dans la room
+- [x] **Sprint validé par l'agent**
+
+#### Sprint B17.2 — Inscription : pseudo pris ou invalide
+- [ ] L'inscription échoue avec « pseudo non disponible » si le pseudo est pris ou invalide (plus de pseudo provisoire)
+- [ ] La vérification en direct `username_available` est conservée ; les comptes anonymes restent refusés
+- [ ] Tests SQL (conteneur jetable) et backend
+- [ ] **Sprint validé par l'agent**
+
+#### Sprint B17.3 — Tables privées : places et codes
+- [ ] En table privée, avant le début, chaque joueur peut choisir sa place (siège libre)
+- [ ] Limite d'essais de code : 5 codes erronés par minute et par compte
+- [ ] Tests
+- [ ] **Sprint validé par l'agent**
+
+#### Sprint B17.4 — Option « annonces secondaires »
+- [ ] Option à la création de toute table (libre, privée, entraînement) : annonces secondaires activées ou non
+- [ ] Désactivées : pas de chelem (annonce ni prime) ni de petit au bout ; on garde contrats et poignées
+- [ ] Parties libres : les joueurs ne sont regroupés qu'avec la même option
+- [ ] Tests
+- [ ] **Sprint validé par l'agent**
+
+#### Sprint B17.5 — Mémoire du projet dans les CLAUDE.md
+- [ ] Carte du code (dossiers, modules, fonctions clés, aides de test) dans `backend/CLAUDE.md`
+- [ ] Décisions de l'humain, état d'avancement et pièges connus (Colyseus, pnpm, Supabase) dans les CLAUDE.md
+- [ ] **Sprint validé par l'agent**
+
+> Pas de pénalité d'abandon tant qu'il n'existe pas de score hors des tables (classement, statistiques) : un abandon est remplacé par un bot. À revoir si un classement apparaît.
+
+> ⏸️ **Pause humaine** : s'arrêter après B17.5 et faire le bilan à l'humain.
+
 ### Bots
 
 #### Sprint B18 — Bot de base
 - [ ] Interface `Bot` (décisions : enchère, appel, écart, carte, annonce)
 - [ ] Bot qui joue toujours un coup légal
-- [ ] Remplissage des sièges vides par des bots dans la room
+- [ ] Remplissage des sièges vides par des bots dans la room ; un joueur qui abandonne est remplacé par un bot
+- [ ] Noms de bots aléatoires, tirés à la création d'une table qui accepte les bots
+- [ ] Le bot ne prend que s'il a un vrai jeu d'attaque (évaluation de la main), au minimum une Prise ; sinon il passe
 - [ ] Option « autoriser les bots » pour le jeu libre
 - [ ] Tests : des parties 100 % bots vont jusqu'au bout
 - [ ] **Sprint validé par l'agent**
@@ -198,6 +239,8 @@ Référence : [spec.md](spec.md)
 - [ ] Il n'émet un signal que si le coup reste légal et raisonnable (ex. ne signale pas un doubleton à couper s'il a le petit en danger)
 - [ ] Tests : un bot émetteur est compris par un bot lecteur (B22)
 - [ ] **Sprint validé par l'agent**
+
+> ⏸️ **Pause humaine** : s'arrêter après B23 et faire le bilan à l'humain.
 
 #### Sprint B24 — Format et validateur d'une donne d'entraînement
 > Une donne d'entraînement a un **ID public** (partageable), pour être rejouée à la même position ou à une autre. Les mains sont indexées par rôle (attaquant, devant, milieu, fond).
@@ -293,7 +336,7 @@ Référence : [spec.md](spec.md)
 
 #### Sprint F4 — Inscription et pseudo
 - [ ] Page d'inscription avec choix du pseudo
-- [ ] Vérification d'unicité du pseudo
+- [ ] Vérification d'unicité du pseudo (`username_available` en direct ; inscription refusée avec « pseudo non disponible »)
 - [ ] Pages protégées (middleware)
 - [ ] **Sprint validé par l'agent**
 
@@ -333,7 +376,7 @@ Référence : [spec.md](spec.md)
 
 #### Sprint F10 — Tables privées
 - [ ] Créer une table privée (code, lien de partage)
-- [ ] Rejoindre par code
+- [ ] Rejoindre par code (saisie mise en majuscules) ; choix de sa place avant le début
 - [ ] Salle d'attente avec liste des joueurs
 - [ ] **Sprint validé par l'agent**
 

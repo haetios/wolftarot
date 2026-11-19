@@ -6,7 +6,7 @@ import appConfig from "../../src/app.config.js";
 import { setDefaultProfileRepository } from "../../src/auth/authenticate.js";
 import type { TarotRoom } from "../../src/rooms/TarotRoom.js";
 import { connectAs, connectWithToken, signTestToken } from "../helpers/auth.js";
-import { InMemoryProfileRepository } from "../helpers/profiles.js";
+import { InMemoryProfileRepository, testProfiles } from "../helpers/profiles.js";
 
 /** La room lit les pseudos dans `profiles` (dépôt en mémoire : aucun appel réseau). */
 describe("TarotRoom : pseudos lus dans les profils", () => {
@@ -20,7 +20,7 @@ describe("TarotRoom : pseudos lus dans les profils", () => {
     colyseus = await boot(appConfig);
   });
   afterAll(async () => {
-    setDefaultProfileRepository(undefined);
+    setDefaultProfileRepository(testProfiles);
     await colyseus.shutdown();
   });
   beforeEach(async () => {
@@ -68,12 +68,17 @@ describe("TarotRoom : pseudos lus dans les profils", () => {
     expect(room.clients.length).toBe(0);
   });
 
-  it("Supabase injoignable : le joueur entre avec un pseudo de repli", async () => {
+  it("Supabase injoignable : connexion refusée (profileUnavailable), aucun siège pris", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     profiles.unavailable = true;
     const room = await createRoom();
-    const client = await connectAs(colyseus, room, { sub: ALICE, username: "Usurpateur" });
-    expect(room.state.players.get(client.sessionId)!.name).toBe("Joueur 1");
+    await expect(
+      connectAs(colyseus, room, { sub: ALICE, username: "Usurpateur" }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.AUTH_FAILED,
+      message: expect.stringContaining("(profileUnavailable)"),
+    });
+    expect(room.state.players.size).toBe(0);
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });

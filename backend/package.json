@@ -10,7 +10,6 @@
   },
   "scripts": {
     "start": "tsx watch src/index.ts",
-    "loadtest": "tsx loadtest/example.ts --room tarot --numClients 4",
     "build": "npm run clean && tsc -p tsconfig.build.json",
     "clean": "rimraf build",
     "test": "vitest run",
@@ -23,7 +22,6 @@
   "author": "",
   "license": "UNLICENSED",
   "devDependencies": {
-    "@colyseus/loadtest": "^0.18.1",
     "@colyseus/sdk": "^0.18.1",
     "@colyseus/testing": "^0.18.5",
     "@eslint/js": "^10.0.1",

@@ -38,3 +38,9 @@ export class InMemoryProfileRepository implements ProfileRepository {
     if (this.unavailable) throw new ProfileLookupError("Supabase injoignable (simulé)");
   }
 }
+
+/**
+ * Dépôt partagé par tous les tests (branché par `test/setup.ts`). `signTestToken` y enregistre le
+ * profil de chaque utilisateur de test, sauf demande contraire (`withoutProfile`).
+ */
+export const testProfiles = new InMemoryProfileRepository();

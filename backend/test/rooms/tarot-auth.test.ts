@@ -4,7 +4,7 @@ import { ErrorCode, matchMaker } from "colyseus";
 
 import appConfig from "../../src/app.config.js";
 import type { TarotRoom } from "../../src/rooms/TarotRoom.js";
-import { connectAs, connectWithToken, signTestToken } from "../helpers/auth.js";
+import { connectAs, connectWithToken, signTestToken, defaultUsername } from "../helpers/auth.js";
 
 describe("TarotRoom : authentification Supabase", () => {
   let colyseus: ColyseusTestServer<typeof appConfig>;
@@ -36,11 +36,11 @@ describe("TarotRoom : authentification Supabase", () => {
       expect(room.state.players.get(client.sessionId)!.name).toBe("Alice");
     });
 
-    it("sans pseudo dans le jeton : pseudo de repli", async () => {
+    it("le pseudo vient du profil, même sans pseudo dans le jeton", async () => {
       const room = await createRoom();
-      await connectAs(colyseus, room, { username: "Alice" });
-      const client = await connectAs(colyseus, room);
-      expect(room.state.players.get(client.sessionId)!.name).toBe("Joueur 2");
+      const sub = "4b0d5c7e-3333-4222-8333-944455556666";
+      const client = await connectAs(colyseus, room, { sub });
+      expect(room.state.players.get(client.sessionId)!.name).toBe(defaultUsername(sub));
     });
 
     it("ni le jeton ni l'identifiant Supabase ne sont synchronisés", async () => {

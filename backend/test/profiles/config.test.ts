@@ -14,11 +14,11 @@ const legacyKey = (role: string) =>
 describe("configuration des profils (variables d'environnement)", () => {
   const url = "https://abcd.supabase.co";
 
-  it("sans clé : aucun dépôt (pseudos de user_metadata)", () => {
-    expect(profileRepositoryFromEnv({})).toBeNull();
-    expect(
+  it("sans clé : erreur explicite au démarrage (clé obligatoire)", () => {
+    expect(() => profileRepositoryFromEnv({})).toThrow(/obligatoire/);
+    expect(() =>
       profileRepositoryFromEnv({ SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: "  " }),
-    ).toBeNull();
+    ).toThrow(/obligatoire/);
   });
 
   it("clé publishable ou ancienne clé anon : dépôt Supabase", () => {
