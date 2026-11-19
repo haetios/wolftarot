@@ -16,6 +16,18 @@
  *   par un index unique sur `lower(username)`.
  */
 
+/**
+ * Refus d'une inscription à cause du pseudo (décision de l'humain du 19/11/2026 : plus de pseudo
+ * provisoire). Le hook Supabase « before user created » renvoie ce message au frontend, avec le
+ * code HTTP indiqué (migration `…_signup_requires_available_username.sql`).
+ */
+export const SIGNUP_USERNAME_ERRORS = {
+  /** Pseudo absent ou invalide (HTTP 400). */
+  invalid: { message: "username_invalid", httpCode: 400 },
+  /** Pseudo déjà pris, sans tenir compte de la casse (HTTP 409) : « pseudo non disponible ». */
+  unavailable: { message: "username_unavailable", httpCode: 409 },
+} as const;
+
 export const USERNAME_MIN_LENGTH = 3;
 export const USERNAME_MAX_LENGTH = 20;
 

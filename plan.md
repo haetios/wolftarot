@@ -160,10 +160,10 @@ Référence : [spec.md](spec.md)
 - [x] **Sprint validé par l'agent**
 
 #### Sprint B17.2 — Inscription : pseudo pris ou invalide
-- [ ] L'inscription échoue avec « pseudo non disponible » si le pseudo est pris ou invalide (plus de pseudo provisoire)
-- [ ] La vérification en direct `username_available` est conservée ; les comptes anonymes restent refusés
-- [ ] Tests SQL (conteneur jetable) et backend
-- [ ] **Sprint validé par l'agent**
+- [x] L'inscription échoue avec « pseudo non disponible » si le pseudo est pris ou invalide (plus de pseudo provisoire)
+- [x] La vérification en direct `username_available` est conservée ; les comptes anonymes restent refusés
+- [x] Tests SQL (conteneur jetable) et backend
+- [x] **Sprint validé par l'agent**
 
 #### Sprint B17.3 — Tables privées : places et codes
 - [ ] En table privée, avant le début, chaque joueur peut choisir sa place (siège libre)

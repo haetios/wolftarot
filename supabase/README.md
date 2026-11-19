@@ -31,13 +31,48 @@ Le dossier ne contient pas encore de `config.toml` : `supabase init` le crée s'
   commence et finit par une lettre ou un chiffre. Liste blanche : espaces, caractères invisibles
   (U+200B, U+202E…), autres alphabets et emoji sont refusés (`public.is_valid_username`).
 - Unique sans tenir compte de la casse (index unique sur `lower(username)`).
-- À l'inscription, le pseudo est lu dans `raw_user_meta_data->>'username'`
-  (`supabase.auth.signUp({ email, password, options: { data: { username } } })`), puis
-  `user_name` et `preferred_username` (OAuth). Il est normalisé (blancs de bord, NFC).
-  S'il est absent, invalide ou déjà pris, le profil reçoit un pseudo provisoire `Joueur_xxxxxxxx`
-  que le joueur peut changer : l'inscription n'échoue jamais à cause du pseudo.
+- À l'inscription, le pseudo est lu uniquement dans `raw_user_meta_data->>'username'`
+  (`supabase.auth.signUp({ email, password, options: { data: { username } } })`). Il est
+  normalisé (blancs de bord, NFC).
+- **S'il est absent, invalide ou déjà pris, l'inscription échoue** (B17.2, plus de pseudo
+  provisoire) :
+  - le hook Auth `public.hook_before_user_created` refuse la création du compte et renvoie au
+    frontend le message `username_invalid` (HTTP 400) ou `username_unavailable` (HTTP 409,
+    « pseudo non disponible ») ;
+  - le déclencheur `on_auth_user_created` refuse aussi (filet de sécurité : hook non activé, ou deux
+    inscriptions simultanées avec le même pseudo) ; Supabase Auth répond alors par une erreur
+    générique (« Database error saving new user »).
 - Avant l'inscription, `supabase.rpc('username_available', { candidate })` indique si un pseudo
-  est valide et libre (seule fonction ouverte aux visiteurs).
+  est valide et libre (seule fonction ouverte aux visiteurs), pour l'afficher en direct.
+
+### Activer le hook « Before User Created » (obligatoire)
+
+Sans lui, l'inscription échoue bien, mais avec un message générique au lieu de
+« pseudo non disponible ».
+
+- **Projet hébergé** : Dashboard → Authentication → Hooks → *Before User Created* → type
+  *Postgres*, schéma `public`, fonction `hook_before_user_created`.
+- **Local** (`supabase/config.toml`, créé par `supabase init`) — clés à confirmer avec la
+  documentation de la CLI installée :
+
+  ```toml
+  [auth.hook.before_user_created]
+  enabled = true
+  uri = "pg-functions://postgres/public/hook_before_user_created"
+  ```
+
+## Vérifier les migrations
+
+`tests/check_signup.sql` rejoue les cas d'inscription (acceptée, refusée par le déclencheur, réponses
+du hook, droits) sur une base neuve, dans un conteneur jetable :
+
+```sh
+docker run -d --name wolftarot-sql -e POSTGRES_PASSWORD=postgres public.ecr.aws/supabase/postgres:17.11.0.004
+# attendre que la base soit prête (pg_isready), puis :
+for f in migrations/*.sql; do docker exec -i wolftarot-sql psql -v ON_ERROR_STOP=1 -U postgres -h localhost < "$f"; done
+docker exec -i wolftarot-sql psql -U supabase_admin -h localhost < tests/check_signup.sql   # « OK 1 » à « OK 5 »
+docker rm -f wolftarot-sql
+```
 
 ### Ordre de base de la main (`settings.hand_order`)
 
