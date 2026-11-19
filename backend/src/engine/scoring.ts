@@ -189,14 +189,26 @@ export type BonusInput = {
   readonly fulfilled: boolean;
   readonly announcements: readonly Announcement[];
   readonly play: PlayState;
+  /**
+   * Annonces secondaires (chelem, petit au bout), vrai par défaut. Désactivées à la création de
+   * la table (B17.4) : ni prime de chelem ni prime de petit au bout ; contrats et poignées restent.
+   */
+  readonly secondaryAnnouncements?: boolean;
 };
 
-export function computeBonuses({ contract, fulfilled, announcements, play }: BonusInput): Bonuses {
+export function computeBonuses({
+  contract,
+  fulfilled,
+  announcements,
+  play,
+  secondaryAnnouncements = true,
+}: BonusInput): Bonuses {
   const winnerSign = fulfilled ? 1 : -1;
   const handful = announcements.reduce(
     (total, a) => (a.kind === "handful" ? total + HANDFUL_BONUS[a.level] * winnerSign : total),
     0,
   );
+  if (!secondaryAnnouncements) return { handful, petitAuBout: 0, slam: 0 };
 
   const petitCamp = petitAuBoutCamp(play);
   const petitValue = PETIT_AU_BOUT_BONUS * CONTRACT_MULTIPLIERS[contract];
@@ -233,6 +245,8 @@ export type ScoreDealInput = Seats & {
   /** L'écart du preneur (Petite et Garde), vide sinon. */
   readonly discard: readonly Card[];
   readonly announcements: readonly Announcement[];
+  /** Annonces secondaires (chelem, petit au bout) : vrai par défaut (voir `BonusInput`). */
+  readonly secondaryAnnouncements?: boolean;
 };
 
 export function scoreDeal(input: ScoreDealInput): DealScore {

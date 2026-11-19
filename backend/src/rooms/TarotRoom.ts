@@ -75,6 +75,12 @@ export type TarotRoomOptions = {
    * rejointe par son code avec `client.joinById(code)`. (`private` est un nom réservé par Colyseus.)
    */
   privateTable?: boolean;
+  /**
+   * Annonces secondaires (chelem, petit au bout), activées par défaut. Désactivées : on ne garde
+   * que les annonces primaires (contrats et poignées). Choisi à la création de toute table ;
+   * en partie libre, les joueurs ne sont regroupés qu'avec la même option.
+   */
+  secondaryAnnouncements?: boolean;
 };
 
 /** Alphabet des codes de table privée : sans 0/O, 1/I/L, pour se lire et se dicter sans erreur. */
@@ -113,6 +119,15 @@ export function normalizeMatchmakingOptions(options: unknown): void {
     throw new ServerError(
       ErrorCode.MATCHMAKE_INVALID_CRITERIA,
       "Option privateTable invalide : un booléen est attendu",
+    );
+  }
+  if (opts.secondaryAnnouncements === undefined) {
+    // Valeur par défaut fixée avant la recherche de table, comme `playerCount` (filtre complet).
+    opts.secondaryAnnouncements = true;
+  } else if (typeof opts.secondaryAnnouncements !== "boolean") {
+    throw new ServerError(
+      ErrorCode.MATCHMAKE_INVALID_CRITERIA,
+      "Option secondaryAnnouncements invalide : un booléen est attendu",
     );
   }
   if (opts.playerCount === undefined) {
@@ -232,6 +247,7 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     }
     this.maxClients = playerCount;
     this.state.playerCount = playerCount;
+    this.state.secondaryAnnouncements = options.secondaryAnnouncements !== false;
 
     if (options.privateTable === true) {
       // Le code est l'identifiant de la room : on le rejoint avec `joinById(code)`.
@@ -419,6 +435,12 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
 
   private onAnnounceSlam(seat: number) {
     const ctx = this.expectPhase("playing");
+    if (!this.state.secondaryAnnouncements) {
+      throw new IllegalActionError(
+        "secondaryAnnouncementsDisabled",
+        "Les annonces secondaires (chelem, petit au bout) sont désactivées à cette table",
+      );
+    }
     const play = ctx.play!;
     if (play.completedTricks.length > 0 || play.currentTrick.length > 0) {
       throw new IllegalActionError("tooLate", "Le chelem se demande avant la première carte");
@@ -644,6 +666,8 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
       attackers: ctx.kingCall ? attackerSeats(ctx.kingCall) : [ctx.takerSeat],
       firstLeader: firstLeader(this.playerCount, this.state.dealer, ctx.announcements),
       calledCard: ctx.kingCall?.calledCard ?? null,
+      // Sans annonces secondaires, pas de chelem : l'Excuse au dernier pli change toujours de camp.
+      slamExcuseRule: this.state.secondaryAnnouncements,
     });
     this.setPhase("playing", ctx.play.currentSeat ?? -1);
   }
@@ -658,6 +682,7 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
       playerCount: this.playerCount,
       takerSeat: ctx.takerSeat,
       partnerSeat: ctx.kingCall?.partnerSeat ?? null,
+      secondaryAnnouncements: this.state.secondaryAnnouncements,
     });
 
     const result = new DealResultState();

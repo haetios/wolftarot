@@ -116,6 +116,19 @@ const room = await client.joinOrCreate("tarot", { playerCount: 4 }); // 3, 4 or 
 - Matchmaking options must be a JSON object; anything else (string, number, `null`, array) is
   refused with `MATCHMAKE_INVALID_CRITERIA`, so the size filter can never be bypassed.
 
+## Secondary announcements option
+
+Every table (free game, private table, and later training) is created with
+`secondaryAnnouncements: true | false` (default `true`, published in `state.secondaryAnnouncements`):
+
+- `false` keeps only the primary announcements (contracts and handfuls): the slam cannot be
+  announced (`secondaryAnnouncementsDisabled`), and the score has no slam bonus and no petit au bout
+  bonus. Without slams, the FFT "Excuse led to the last trick wins a slam" rule is off too: an
+  Excuse played to the last trick always changes camp.
+- Free games: players are only grouped with players who chose the same option
+  (`filterBy(["playerCount", "secondaryAnnouncements"])`, normalized in `TarotRoom.onAuth`).
+  A non-boolean value is refused (`MATCHMAKE_INVALID_CRITERIA`).
+
 ## Private tables
 
 ```ts

@@ -83,6 +83,8 @@ export const TarotState = schema({
   playerCount: t.uint8().default(4),
   /** Table privée : absente du matchmaking, rejointe par son code. */
   isPrivate: t.boolean().default(false),
+  /** Annonces secondaires (chelem, petit au bout) activées à cette table ; sinon contrats et poignées seulement. */
+  secondaryAnnouncements: t.boolean().default(true),
   /** Code de la table privée (c'est l'identifiant de la room : `joinById(code)`) ; vide sinon. */
   code: t.string().default(""),
   /** Table privée : siège de l'hôte (qui choisit la taille et lance la partie) ; −1 sinon. */

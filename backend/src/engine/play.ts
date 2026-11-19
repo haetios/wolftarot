@@ -25,6 +25,12 @@ export type PlayState = {
   readonly completedTricks: readonly CompletedTrick[];
   /** Siège qui doit jouer, ou `null` quand la donne est terminée. */
   readonly currentSeat: number | null;
+  /**
+   * Règle du chelem pour l'Excuse entamée au dernier pli (voir `excuseWinsLastTrick`).
+   * `false` quand les annonces secondaires sont désactivées : il n'y a alors pas de chelem.
+   * Absent : règle active (règlement FFT).
+   */
+  readonly slamExcuseRule?: boolean;
 };
 
 export type StartPlayOptions = {
@@ -33,10 +39,12 @@ export type StartPlayOptions = {
   /** Le joueur qui entame le premier pli (celui qui suit le donneur). */
   readonly firstLeader: number;
   readonly calledCard?: SuitCard | null;
+  /** Règle du chelem pour l'Excuse au dernier pli (vrai par défaut, voir `PlayState`). */
+  readonly slamExcuseRule?: boolean;
 };
 
 export function startPlay(options: StartPlayOptions): PlayState {
-  const { hands, attackers, firstLeader, calledCard = null } = options;
+  const { hands, attackers, firstLeader, calledCard = null, slamExcuseRule = true } = options;
   if (!Number.isInteger(firstLeader) || firstLeader < 0 || firstLeader >= hands.length) {
     throw new RangeError(`Premier joueur invalide : ${firstLeader}`);
   }
@@ -49,6 +57,7 @@ export function startPlay(options: StartPlayOptions): PlayState {
     currentTrick: [],
     completedTricks: [],
     currentSeat: firstLeader,
+    slamExcuseRule,
   };
 }
 
@@ -87,6 +96,7 @@ export function legalCardsForCurrentPlayer(state: PlayState): Card[] {
  * par un camp qui a remporté tous les plis précédents (chelem) : elle remporte alors le pli.
  */
 function excuseWinsLastTrick(state: PlayState, trick: readonly PlayedCard[]): boolean {
+  if (state.slamExcuseRule === false) return false;
   const lead = trick[0];
   if (!lead || lead.card.kind !== "excuse") return false;
   const camp = campOf(state, lead.seat);

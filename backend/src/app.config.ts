@@ -27,9 +27,10 @@ const server = defineServer({
    * Define your room handlers:
    */
   rooms: {
-    // Parties libres : une file d'attente par taille de table (3, 4 ou 5 joueurs).
-    // `playerCount` est normalisé dans `TarotRoom.onAuth` avant la recherche de table.
-    tarot: defineRoom(TarotRoom).filterBy(["playerCount"]),
+    // Parties libres : une file d'attente par taille de table (3, 4 ou 5 joueurs) et par choix
+    // des annonces secondaires. Les deux options sont normalisées dans `TarotRoom.onAuth`, avant
+    // la recherche de table (une option absente ne filtrerait rien).
+    tarot: defineRoom(TarotRoom).filterBy(["playerCount", "secondaryAnnouncements"]),
   },
 
   /**

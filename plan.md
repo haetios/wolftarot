@@ -172,11 +172,11 @@ Référence : [spec.md](spec.md)
 - [x] **Sprint validé par l'agent**
 
 #### Sprint B17.4 — Option « annonces secondaires »
-- [ ] Option à la création de toute table (libre, privée, entraînement) : annonces secondaires activées ou non
-- [ ] Désactivées : pas de chelem (annonce ni prime) ni de petit au bout ; on garde contrats et poignées
-- [ ] Parties libres : les joueurs ne sont regroupés qu'avec la même option
-- [ ] Tests
-- [ ] **Sprint validé par l'agent**
+- [x] Option à la création de toute table (libre, privée, entraînement) : annonces secondaires activées ou non
+- [x] Désactivées : pas de chelem (annonce ni prime) ni de petit au bout ; on garde contrats et poignées
+- [x] Parties libres : les joueurs ne sont regroupés qu'avec la même option
+- [x] Tests
+- [x] **Sprint validé par l'agent**
 
 #### Sprint B17.5 — Mémoire du projet dans les CLAUDE.md
 - [ ] Carte du code (dossiers, modules, fonctions clés, aides de test) dans `backend/CLAUDE.md`
