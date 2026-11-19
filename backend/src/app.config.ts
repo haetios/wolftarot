@@ -12,12 +12,15 @@ import {
  */
 import { TarotRoom } from "./rooms/TarotRoom.js";
 import { defaultProfileRepository, defaultTokenVerifier } from "./auth/authenticate.js";
+import { installCodeAttemptLimit } from "./matchmaking/code-attempts.js";
 
 // Lit la configuration Supabase dès le démarrage : une valeur invalide (dont une clé
 // service_role à la place de la clé publique) arrête le serveur avec une erreur explicite,
 // plutôt qu'à la première connexion.
 defaultTokenVerifier();
 defaultProfileRepository();
+// Tables privées : 5 codes erronés par minute et par compte (voir matchmaking/code-attempts.ts).
+installCodeAttemptLimit();
 
 const server = defineServer({
   /**

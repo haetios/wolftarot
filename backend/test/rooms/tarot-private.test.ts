@@ -5,6 +5,11 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 
 import appConfig from "../../src/app.config.js";
 import {
+  RECONNECT_REFUSED,
+  TOO_MANY_CODE_ATTEMPTS,
+  codeAttempts,
+} from "../../src/matchmaking/code-attempts.js";
+import {
   PRIVATE_CODE_ALPHABET,
   PRIVATE_CODE_LENGTH,
   type TarotRoom,
@@ -21,10 +26,13 @@ describe("TarotRoom : tables privées", () => {
     colyseus = await boot(appConfig);
   });
   afterAll(async () => colyseus.shutdown());
-  beforeEach(async () => colyseus.cleanup());
+  beforeEach(async () => {
+    await colyseus.cleanup();
+    codeAttempts.reset();
+  });
 
-  async function authenticate() {
-    colyseus.sdk.auth.token = await signTestToken({ sub: randomUUID() });
+  async function authenticate(sub: string = randomUUID()) {
+    colyseus.sdk.auth.token = await signTestToken({ sub });
   }
 
   /** L'hôte crée une table privée, comme le fera le frontend. */
@@ -33,9 +41,9 @@ describe("TarotRoom : tables privées", () => {
     return colyseus.sdk.create("tarot", { privateTable: true, ...options });
   }
 
-  /** Un ami rejoint la table avec son code. */
-  async function joinByCode(code: string): Promise<SdkRoom> {
-    await authenticate();
+  /** Un ami rejoint la table avec son code (nouveau compte, sauf `sub` fourni). */
+  async function joinByCode(code: string, sub?: string): Promise<SdkRoom> {
+    await authenticate(sub);
     return colyseus.sdk.joinById(code);
   }
 
@@ -230,6 +238,122 @@ describe("TarotRoom : tables privées", () => {
       // Le nouvel hôte peut agir.
       await send(friend, "setPlayerCount", { playerCount: 3 });
       expect(room.state.playerCount).toBe(3);
+    });
+  });
+
+  describe("limite d'essais de code (5 codes erronés par minute et par compte)", () => {
+    it("au 6e essai après 5 codes faux, le compte est bloqué, même avec le bon code", async () => {
+      const host = await createPrivate({ playerCount: 4 });
+      const sub = randomUUID();
+      for (let i = 0; i < 5; i++) {
+        await expect(joinByCode(`ZZZZZ${i + 2}`, sub)).rejects.toThrow(/not found/);
+      }
+      await expect(joinByCode(host.roomId, sub)).rejects.toMatchObject({
+        code: TOO_MANY_CODE_ATTEMPTS,
+      });
+      expect(serverRoom(host.roomId).state.players.size).toBe(1);
+
+      // Les autres comptes ne sont pas touchés.
+      const friend = await joinByCode(host.roomId);
+      expect(friend.roomId).toBe(host.roomId);
+    });
+
+    it("4 codes faux puis le bon code : le joueur entre", async () => {
+      const host = await createPrivate({ playerCount: 4 });
+      const sub = randomUUID();
+      for (let i = 0; i < 4; i++) {
+        await expect(joinByCode(`YYYYY${i + 2}`, sub)).rejects.toThrow(/not found/);
+      }
+      expect((await joinByCode(host.roomId, sub)).roomId).toBe(host.roomId);
+    });
+
+    it("une table pleine ne compte pas comme un code erroné", async () => {
+      const host = await createPrivate({ playerCount: 3 });
+      await joinByCode(host.roomId);
+      await joinByCode(host.roomId);
+      const sub = randomUUID();
+      for (let i = 0; i < 6; i++) {
+        const error = await joinByCode(host.roomId, sub).catch((e: { code: number }) => e);
+        expect((error as { code: number }).code).not.toBe(TOO_MANY_CODE_ATTEMPTS);
+      }
+    });
+
+    it("la route reconnect ne révèle pas si un code existe (même réponse, sans limite contournée)", async () => {
+      const host = await createPrivate({ playerCount: 4 });
+      /** Réponse brute de `POST /matchmake/reconnect/<code>` (statut et corps). */
+      const probe = async (code: string, body: Record<string, unknown>) => {
+        const error = (await colyseus.http
+          .post(`/matchmake/reconnect/${code}`, {
+            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json" },
+          })
+          .then(
+            () => expect.fail("la reconnexion aurait dû être refusée"),
+            (e: unknown) => e,
+          )) as { statusCode: number; data: unknown };
+        return { status: error.statusCode, body: error.data };
+      };
+
+      const cases = [{}, { reconnectionToken: "faux-jeton" }];
+      for (const body of cases) {
+        const unknown = await probe("ZZZZZZ", body);
+        const existing = await probe(host.roomId, body);
+        expect(existing).toEqual(unknown);
+        expect(JSON.stringify(unknown.body)).toContain(RECONNECT_REFUSED.message);
+      }
+    });
+
+    it("sans jeton valide : refusé tout de suite, sans pouvoir tester un code", async () => {
+      colyseus.sdk.auth.token = "pas-un-jeton";
+      await expect(colyseus.sdk.joinById("ZZZZZZ")).rejects.toThrow(/Authentification refusée/);
+    });
+  });
+
+  describe("choisir sa place (table privée, avant le début)", () => {
+    it("un joueur prend une place libre ; un nouvel arrivant prend la plus petite place libre", async () => {
+      const host = await createPrivate({ playerCount: 4 });
+      const room = serverRoom(host.roomId);
+      const friend = await joinByCode(host.roomId);
+      expect(room.state.players.get(friend.sessionId)!.seat).toBe(1);
+
+      await send(friend, "chooseSeat", { seat: 3 });
+      expect(room.state.players.get(friend.sessionId)!.seat).toBe(3);
+      const third = await joinByCode(host.roomId);
+      expect(room.state.players.get(third.sessionId)!.seat).toBe(1);
+    });
+
+    it("l'hôte peut changer de place et reste l'hôte", async () => {
+      const host = await createPrivate({ playerCount: 4 });
+      const room = serverRoom(host.roomId);
+      await send(host, "chooseSeat", { seat: 2 });
+      expect(room.state.players.get(host.sessionId)!.seat).toBe(2);
+      expect(room.state.hostSeat).toBe(2);
+      await joinByCode(host.roomId);
+      await send(host, "setPlayerCount", { playerCount: 3 });
+      expect(room.state.playerCount).toBe(3);
+    });
+
+    it("refuse une place prise, invalide, ou après le début", async () => {
+      const host = await createPrivate({ playerCount: 3 });
+      const friend = await joinByCode(host.roomId);
+      expect(await sendExpectingError(friend, "chooseSeat", { seat: 0 })).toBe("seatTaken");
+      for (const seat of [3, -1, 1.5, "2", null]) {
+        expect(await sendExpectingError(friend, "chooseSeat", { seat })).toBe("invalidSeat");
+      }
+      await joinByCode(host.roomId);
+      await send(host, "start");
+      expect(await sendExpectingError(friend, "chooseSeat", { seat: 2 })).toBe("wrongPhase");
+    });
+
+    it("réservé aux tables privées", async () => {
+      const free = await joinFree({ playerCount: 4 });
+      expect(await sendExpectingError(free, "chooseSeat", { seat: 3 })).toBe("notPrivate");
+    });
+
+    it("rester à sa place ne change rien", async () => {
+      const host = await createPrivate({ playerCount: 3 });
+      await send(host, "chooseSeat", { seat: 0 });
+      expect(serverRoom(host.roomId).state.hostSeat).toBe(0);
     });
   });
 });

@@ -1,8 +1,10 @@
+import { ErrorCode, ServerError } from "colyseus";
+
 import { profileRepositoryFromEnv } from "../profiles/config.js";
 import type { ProfileRepository } from "../profiles/repository.js";
 import { verifierKeysFromEnv } from "./config.js";
 import { resolvePlayerIdentity, type PlayerIdentity } from "./identity.js";
-import { createTokenVerifier, type TokenVerifier } from "./verify-token.js";
+import { AuthError, createTokenVerifier, type TokenVerifier } from "./verify-token.js";
 
 let defaultVerifier: TokenVerifier | undefined;
 /** `undefined` : pas encore lu dans l'environnement. */
@@ -55,4 +57,15 @@ export async function authenticate(
   const claims = await verify(token);
   // Le vérificateur n'accepte qu'une chaîne non vide : c'est bien le jeton du joueur.
   return resolvePlayerIdentity(claims, { accessToken: token as string, profiles });
+}
+
+/**
+ * Erreur Colyseus renvoyée au client pour un refus d'authentification : code `AUTH_FAILED` et
+ * message `Authentification refusée (<raison>) : …` (la raison est exploitable par le frontend).
+ */
+export function authFailure(error: AuthError): ServerError {
+  return new ServerError(
+    ErrorCode.AUTH_FAILED,
+    `Authentification refusée (${error.reason}) : ${error.message}`,
+  );
 }

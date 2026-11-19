@@ -17,7 +17,7 @@ import {
   validateSlamAnnouncement,
   type Announcement,
 } from "../engine/announcements.js";
-import { authenticate } from "../auth/authenticate.js";
+import { authenticate, authFailure } from "../auth/authenticate.js";
 import type { PlayerIdentity } from "../auth/identity.js";
 import { AuthError } from "../auth/verify-token.js";
 import {
@@ -220,6 +220,9 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     setPlayerCount: (client: Client, message: unknown) =>
       this.handle(client, (seat) => this.onSetPlayerCount(seat, field(message, "playerCount"))),
     start: (client: Client) => this.handle(client, (seat) => this.onStart(seat)),
+    // Tables privées, pour chaque joueur, avant le début : choisir sa place.
+    chooseSeat: (client: Client, message: unknown) =>
+      this.handle(client, (seat) => this.onChooseSeat(seat, field(message, "seat"))),
   };
 
   async onCreate(options: TarotRoomOptions = {}) {
@@ -258,10 +261,7 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
       return identity;
     } catch (error) {
       if (!(error instanceof AuthError)) throw error;
-      throw new ServerError(
-        ErrorCode.AUTH_FAILED,
-        `Authentification refusée (${error.reason}) : ${error.message}`,
-      );
+      throw authFailure(error);
     }
   }
 
@@ -509,6 +509,31 @@ export class TarotRoom extends Room<{ state: TarotState; client: TarotClient }> 
     this.maxClients = raw;
     // Une table pleine est verrouillée par Colyseus : on la rouvre s'il reste des places.
     if (players.length < raw) void this.unlock();
+  }
+
+  /**
+   * Table privée : un joueur choisit sa place (siège libre) tant que la partie n'a pas commencé,
+   * par exemple pour qu'une équipe s'entraîne avec des places fixes. L'hôte garde son rôle.
+   */
+  private onChooseSeat(seat: number, raw: unknown) {
+    if (!this.state.isPrivate) {
+      throw new IllegalActionError("notPrivate", "Réservé aux tables privées");
+    }
+    if (this.phase !== "waiting") {
+      throw new IllegalActionError("wrongPhase", "La partie a déjà commencé");
+    }
+    if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0 || raw >= this.playerCount) {
+      throw new IllegalActionError(
+        "invalidSeat",
+        `Place invalide : ${String(raw)} (attendu : 0 à ${this.playerCount - 1})`,
+      );
+    }
+    if (raw === seat) return;
+    if (this.playerAt(raw)) {
+      throw new IllegalActionError("seatTaken", `La place ${raw} est déjà prise`);
+    }
+    this.playerAt(seat)!.seat = raw;
+    if (this.state.hostSeat === seat) this.state.hostSeat = raw;
   }
 
   /** Table privée : l'hôte lance la partie, une fois tous les sièges occupés. */

@@ -166,10 +166,10 @@ Référence : [spec.md](spec.md)
 - [x] **Sprint validé par l'agent**
 
 #### Sprint B17.3 — Tables privées : places et codes
-- [ ] En table privée, avant le début, chaque joueur peut choisir sa place (siège libre)
-- [ ] Limite d'essais de code : 5 codes erronés par minute et par compte
-- [ ] Tests
-- [ ] **Sprint validé par l'agent**
+- [x] En table privée, avant le début, chaque joueur peut choisir sa place (siège libre)
+- [x] Limite d'essais de code : 5 codes erronés par minute et par compte
+- [x] Tests
+- [x] **Sprint validé par l'agent**
 
 #### Sprint B17.4 — Option « annonces secondaires »
 - [ ] Option à la création de toute table (libre, privée, entraînement) : annonces secondaires activées ou non

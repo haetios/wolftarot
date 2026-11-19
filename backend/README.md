@@ -135,8 +135,21 @@ const room = await client.joinById(code);
     seats are renumbered without gaps);
   - `send("start")` once every seat is taken. A full private table does not start by itself.
 - If the host leaves before the start, the player at the lowest seat becomes the host.
+- Before the start, every player can pick a free seat: `send("chooseSeat", { seat })` (e.g. a team
+  practising with fixed seats); the host keeps the host role. New players take the lowest free seat.
+- Code attempts are limited to **5 wrong codes per minute per account** (sliding window). A wrong
+  code is a code with no open table; retrying a full table does not count. Once blocked, even a
+  right code is refused with `TOO_MANY_CODE_ATTEMPTS` (code 4290) until the window passes. Without a
+  valid token, `joinById` is refused at once (`AUTH_FAILED`), so codes cannot be probed anonymously.
+  (Colyseus looks up the table before `onAuth`, and its router runs before Express: the limit wraps
+  the matchmaking controller's `joinById`, see `src/matchmaking/code-attempts.ts`.)
+- `POST /matchmake/reconnect/<code>` needs no account and Colyseus answers differently whether the
+  table exists or not: every refused reconnection therefore gets the same answer
+  (`MATCHMAKE_EXPIRED`, "reconnection token invalid or expired."), so it cannot be used to probe
+  codes. A real reconnection (SDK reconnection token) is unchanged.
+- The limit is per account: someone creating many accounts multiplies their attempts (accepted).
 - Refusals (message `error`): `notPrivate`, `notHost`, `wrongPhase`, `tableNotFull`,
-  `invalidPlayerCount`, `tooManyPlayers`.
+  `invalidPlayerCount`, `tooManyPlayers`, `invalidSeat`, `seatTaken`.
 
 ## Disconnection, reconnection, turn time and abandonment
 
